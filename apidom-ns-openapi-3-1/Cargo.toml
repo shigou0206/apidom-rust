@@ -1,0 +1,7 @@
+[package]
+name = "apidom-ns-openapi-3-1"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+apidom-ast = { path = "../apidom-ast" }

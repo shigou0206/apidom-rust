@@ -1,0 +1,9 @@
+[package]
+name = "apidom-cst"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tree-sitter = "0.24"
+tree-sitter-json = "0.24"
+tree-sitter-yaml  = "0.7"

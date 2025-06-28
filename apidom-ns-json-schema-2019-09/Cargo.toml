@@ -1,0 +1,8 @@
+[package]
+name = "apidom-ns-json-schema-2019-09"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+apidom-ast = { path = "../apidom-ast" }
+apidom-ns-json-schema-draft-7 = { path = "../apidom-ns-json-schema-draft-7" }
