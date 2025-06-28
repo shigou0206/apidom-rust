@@ -1,6 +1,8 @@
 use apidom_ast::minim_model::*;
+use serde_json::Value;
 
 /// OpenAPI 3.x CallbackElement
+/// 支持运行时表达式检测、元数据操作、$ref 处理等高级功能
 #[derive(Debug, Clone)]
 pub struct CallbackElement {
     pub object: ObjectElement,
@@ -40,6 +42,202 @@ impl CallbackElement {
     pub fn set_content(&mut self, obj: ObjectElement) {
         self.object = obj;
         self.object.set_element_type("callback");
+    }
+
+    /// 检查回调是否包含运行时表达式
+    pub fn has_runtime_expressions(&self) -> bool {
+        self.object.content.iter().any(|member| {
+            if let Element::String(key_str) = &*member.key {
+                is_runtime_expression(&key_str.content)
+            } else {
+                false
+            }
+        })
+    }
+
+    /// 获取所有运行时表达式的键
+    pub fn get_runtime_expression_keys(&self) -> Vec<String> {
+        self.object.content.iter()
+            .filter_map(|member| {
+                if let Element::String(key_str) = &*member.key {
+                    if is_runtime_expression(&key_str.content) {
+                        Some(key_str.content.clone())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// 过滤出包含运行时表达式的元素
+    pub fn filter_runtime_expressions(&self) -> Vec<(&String, &Element)> {
+        self.object.content.iter()
+            .filter_map(|member| {
+                if let Element::String(key_str) = &*member.key {
+                    if is_runtime_expression(&key_str.content) {
+                        Some((&key_str.content, member.value.as_ref()))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// 检查回调是否包含 $ref 引用
+    pub fn has_references(&self) -> bool {
+        self.object.content.iter().any(|member| {
+            if let Element::Object(obj) = member.value.as_ref() {
+                obj.has_key("$ref")
+            } else {
+                false
+            }
+        })
+    }
+
+    /// 获取所有 $ref 引用的路径
+    pub fn get_reference_paths(&self) -> Vec<String> {
+        self.object.content.iter()
+            .filter_map(|member| {
+                if let Element::Object(obj) = member.value.as_ref() {
+                    if let Some(Element::String(ref_str)) = obj.get("$ref") {
+                        Some(ref_str.content.clone())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// 为指定键的元素设置元数据
+    pub fn set_meta_property(&mut self, key: &str, meta_key: &str, meta_value: Value) -> bool {
+        for member in &mut self.object.content {
+            if let Element::String(key_str) = &*member.key {
+                if key_str.content == key {
+                    if let Element::Object(ref mut obj) = *member.value {
+                        obj.meta.properties.insert(meta_key.to_string(), meta_value);
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// 获取指定键的元素的元数据
+    pub fn get_meta_property(&self, key: &str, meta_key: &str) -> Option<&Value> {
+        for member in &self.object.content {
+            if let Element::String(key_str) = &*member.key {
+                if key_str.content == key {
+                    if let Element::Object(obj) = member.value.as_ref() {
+                        return obj.meta.properties.get(meta_key);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// 为所有 PathItem 元素设置运行时表达式元数据
+    pub fn decorate_path_items_with_expressions(&mut self) {
+        let mut updates = Vec::new();
+        
+        for member in &self.object.content {
+            if let Element::String(key_str) = &*member.key {
+                let key = &key_str.content;
+                if is_runtime_expression(key) {
+                    if let Element::Object(obj) = member.value.as_ref() {
+                        if obj.element == "pathItem" || contains_path_item_operations(member.value.as_ref()) {
+                            updates.push((key.clone(), key.clone()));
+                        }
+                    }
+                }
+            }
+        }
+        
+        for (key, expression) in updates {
+            self.set_meta_property(&key, "runtime-expression", Value::String(expression));
+        }
+    }
+
+    /// 获取所有 PathItem 元素
+    pub fn get_path_items(&self) -> Vec<(&String, &ObjectElement)> {
+        self.object.content.iter()
+            .filter_map(|member| {
+                if let Element::String(key_str) = &*member.key {
+                    if let Element::Object(obj) = member.value.as_ref() {
+                        if obj.element == "pathItem" || contains_path_item_operations(member.value.as_ref()) {
+                            Some((&key_str.content, obj))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// 检查指定键的元素是否为 PathItem
+    pub fn is_path_item(&self, key: &str) -> bool {
+        if let Some(Element::Object(obj)) = self.get(key) {
+            obj.element == "pathItem" || contains_path_item_operations(&Element::Object(obj.clone()))
+        } else {
+            false
+        }
+    }
+
+    /// 获取指定键的 PathItem 元素的运行时表达式
+    pub fn get_path_item_expression(&self, key: &str) -> Option<String> {
+        self.get_meta_property(key, "runtime-expression")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+    }
+
+    /// 迭代所有成员
+    pub fn iter(&self) -> impl Iterator<Item = (&Element, &Element)> {
+        self.object.content.iter().map(|member| (member.key.as_ref(), member.value.as_ref()))
+    }
+
+    /// 计算回调中的表达式数量
+    pub fn expression_count(&self) -> usize {
+        self.get_runtime_expression_keys().len()
+    }
+
+    /// 检查回调是否为空
+    pub fn is_empty(&self) -> bool {
+        self.object.content.is_empty()
+    }
+
+    /// 获取回调的键数量
+    pub fn len(&self) -> usize {
+        self.object.content.len()
+    }
+}
+
+/// 检测字符串是否为运行时表达式格式 {expression}
+fn is_runtime_expression(key: &str) -> bool {
+    key.starts_with('{') && key.ends_with('}') && key.len() > 2 && key.len() <= 2085
+}
+
+/// 检测元素是否包含 PathItem 操作（GET, POST, PUT, DELETE 等）
+fn contains_path_item_operations(element: &Element) -> bool {
+    if let Element::Object(obj) = element {
+        let operations = ["get", "post", "put", "delete", "options", "head", "patch", "trace"];
+        operations.iter().any(|op| obj.has_key(op))
+    } else {
+        false
     }
 }
 
@@ -83,66 +281,161 @@ mod tests {
     }
 
     #[test]
-    fn test_callback_element_set_with_different_key_types() {
+    fn test_runtime_expressions() {
         let mut callback = CallbackElement::new();
         
-        // 测试不同类型的 key
-        callback.set("string_key", Element::String(StringElement::new("value1")));
-        callback.set(String::from("owned_string_key"), Element::String(StringElement::new("value2")));
+        // 添加运行时表达式
+        let mut path_item = ObjectElement::new();
+        path_item.set_element_type("pathItem");
+        path_item.set("post", Element::Object(ObjectElement::new()));
+        callback.set("{$request.body#/callbackUrl}", Element::Object(path_item));
         
-        assert!(callback.get("string_key").is_some());
-        assert!(callback.get("owned_string_key").is_some());
+        // 添加普通键
+        callback.set("normalKey", Element::String(StringElement::new("value")));
+        
+        assert!(callback.has_runtime_expressions());
+        assert_eq!(callback.get_runtime_expression_keys().len(), 1);
+        assert_eq!(callback.get_runtime_expression_keys()[0], "{$request.body#/callbackUrl}");
+        
+        let expressions = callback.filter_runtime_expressions();
+        assert_eq!(expressions.len(), 1);
+        assert_eq!(expressions[0].0, "{$request.body#/callbackUrl}");
     }
 
     #[test]
-    fn test_callback_element_content_access() {
+    fn test_references() {
         let mut callback = CallbackElement::new();
-        callback.set("key1", Element::String(StringElement::new("value1")));
         
-        let content = callback.content();
-        assert_eq!(content.element, "callback");
-        assert!(!content.content.is_empty());
+        // 添加引用
+        let mut ref_obj = ObjectElement::new();
+        ref_obj.set("$ref", Element::String(StringElement::new("#/components/pathItems/webhook")));
+        callback.set("webhookRef", Element::Object(ref_obj));
+        
+        // 添加普通对象
+        callback.set("normalObj", Element::Object(ObjectElement::new()));
+        
+        assert!(callback.has_references());
+        let ref_paths = callback.get_reference_paths();
+        assert_eq!(ref_paths.len(), 1);
+        assert_eq!(ref_paths[0], "#/components/pathItems/webhook");
     }
 
     #[test]
-    fn test_callback_element_set_content() {
+    fn test_meta_property_operations() {
         let mut callback = CallbackElement::new();
         
-        let mut new_obj = ObjectElement::new();
-        new_obj.set("new_key", Element::String(StringElement::new("new_value")));
+        let mut path_item = ObjectElement::new();
+        path_item.set_element_type("pathItem");
+        callback.set("testPath", Element::Object(path_item));
         
-        callback.set_content(new_obj);
+        // 设置元数据
+        let success = callback.set_meta_property("testPath", "runtime-expression", Value::String("{test}".to_string()));
+        assert!(success);
         
-        assert_eq!(callback.object.element, "callback");
-        assert!(callback.get("new_key").is_some());
-    }
-
-    #[test]
-    fn test_callback_element_openapi_scenario() {
-        let mut callback = CallbackElement::new();
-        
-        // 模拟典型的 OpenAPI callback 场景
-        let callback_url = "{$request.body#/callbackUrl}";
-        
-        // 创建一个 POST operation
-        let mut post_operation = ObjectElement::new();
-        post_operation.set("summary", Element::String(StringElement::new("Callback endpoint")));
-        post_operation.set("operationId", Element::String(StringElement::new("callbackOperation")));
-        
-        callback.set(callback_url, Element::Object(post_operation));
-        
-        // 验证设置成功
-        let retrieved = callback.get(callback_url);
-        assert!(retrieved.is_some());
-        
-        if let Some(Element::Object(op)) = retrieved {
-            if let Some(Element::String(summary)) = op.get("summary") {
-                assert_eq!(summary.content, "Callback endpoint");
-            } else {
-                panic!("Expected summary field");
-            }
-        } else {
-            panic!("Expected object element");
+        // 获取元数据
+        let meta_value = callback.get_meta_property("testPath", "runtime-expression");
+        assert!(meta_value.is_some());
+        if let Some(Value::String(expr)) = meta_value {
+            assert_eq!(expr, "{test}");
         }
+    }
+
+    #[test]
+    fn test_decorate_path_items_with_expressions() {
+        let mut callback = CallbackElement::new();
+        
+        let mut path_item = ObjectElement::new();
+        path_item.set_element_type("pathItem");
+        path_item.set("get", Element::Object(ObjectElement::new()));
+        callback.set("{$request.body#/url}", Element::Object(path_item));
+        
+        callback.decorate_path_items_with_expressions();
+        
+        let expression = callback.get_path_item_expression("{$request.body#/url}");
+        assert!(expression.is_some());
+        assert_eq!(expression.unwrap(), "{$request.body#/url}");
+    }
+
+    #[test]
+    fn test_path_item_operations() {
+        let mut callback = CallbackElement::new();
+        
+        // 添加 PathItem
+        let mut path_item = ObjectElement::new();
+        path_item.set_element_type("pathItem");
+        path_item.set("post", Element::Object(ObjectElement::new()));
+        callback.set("pathItem1", Element::Object(path_item));
+        
+        // 添加含有操作的对象（未设置 pathItem 类型）
+        let mut operations_obj = ObjectElement::new();
+        operations_obj.set("get", Element::Object(ObjectElement::new()));
+        callback.set("pathItem2", Element::Object(operations_obj));
+        
+        // 添加普通对象
+        callback.set("normalObj", Element::Object(ObjectElement::new()));
+        
+        assert!(callback.is_path_item("pathItem1"));
+        assert!(callback.is_path_item("pathItem2"));
+        assert!(!callback.is_path_item("normalObj"));
+        
+        let path_items = callback.get_path_items();
+        assert_eq!(path_items.len(), 2);
+    }
+
+    #[test]
+    fn test_callback_iteration_and_stats() {
+        let mut callback = CallbackElement::new();
+        
+        callback.set("{expr1}", Element::String(StringElement::new("value1")));
+        callback.set("{expr2}", Element::String(StringElement::new("value2")));
+        callback.set("normal", Element::String(StringElement::new("value3")));
+        
+        assert_eq!(callback.len(), 3);
+        assert!(!callback.is_empty());
+        assert_eq!(callback.expression_count(), 2);
+        
+        let mut count = 0;
+        for (key, value) in callback.iter() {
+            assert!(matches!(key, Element::String(_)) || matches!(key, Element::Object(_)));
+            assert!(matches!(value, Element::String(_)));
+            count += 1;
+        }
+        assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn test_complex_callback_with_mixed_content() {
+        let mut callback = CallbackElement::new();
+        
+        // 运行时表达式 + PathItem
+        let mut path_item1 = ObjectElement::new();
+        path_item1.set_element_type("pathItem");
+        path_item1.set("post", Element::Object(ObjectElement::new()));
+        callback.set("{$request.body#/webhook}", Element::Object(path_item1));
+        
+        // 普通键 + 引用
+        let mut ref_obj = ObjectElement::new();
+        ref_obj.set("$ref", Element::String(StringElement::new("#/components/callbacks/myCallback")));
+        callback.set("callbackRef", Element::Object(ref_obj));
+        
+        // 普通键 + 普通对象
+        let mut normal_obj = ObjectElement::new();
+        normal_obj.set("description", Element::String(StringElement::new("A normal callback")));
+        callback.set("normalCallback", Element::Object(normal_obj));
+        
+        // 验证各种功能
+        assert!(callback.has_runtime_expressions());
+        assert!(callback.has_references());
+        assert_eq!(callback.len(), 3);
+        assert_eq!(callback.expression_count(), 1);
+        assert_eq!(callback.get_runtime_expression_keys().len(), 1);
+        assert_eq!(callback.get_reference_paths().len(), 1);
+        assert_eq!(callback.get_path_items().len(), 1);
+        
+        // 装饰 PathItem
+        callback.decorate_path_items_with_expressions();
+        let expr = callback.get_path_item_expression("{$request.body#/webhook}");
+        assert!(expr.is_some());
+        assert_eq!(expr.unwrap(), "{$request.body#/webhook}");
     }
 }
