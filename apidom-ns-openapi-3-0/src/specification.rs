@@ -190,7 +190,7 @@ fn server_variable_visitor(element: &Element, _folder: Option<&mut dyn Fold>) ->
 
 /// Components visitor
 fn components_visitor(element: &Element, _folder: Option<&mut dyn Fold>) -> Option<Element> {
-    if let Some(built) = build_components(element) {
+    if let Some(built) = build_components(element.clone()) {
         Some(Element::Object(built.object))
     } else {
         Some(element.clone())

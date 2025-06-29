@@ -114,7 +114,7 @@ impl Fold for OpenApiBuilderFolder {
                 }
             }
             "components" => {
-                if let Some(built) = build_and_decorate_components(&Element::Object(element.clone()), Some(self)) {
+                if let Some(built) = build_and_decorate_components(Element::Object(element.clone()), Some(self)) {
                     Element::Object(built.object)
                 } else {
                     DefaultFolder.fold_object_element(element)

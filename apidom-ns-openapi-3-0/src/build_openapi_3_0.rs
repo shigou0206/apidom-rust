@@ -32,7 +32,7 @@ pub fn build_openapi_3_0(element: &Element) -> Option<OpenApi3_0Element> {
                     }
                 }
                 "components" => {
-                    if let Some(components) = components_builder::build_components(val) {
+                    if let Some(components) = components_builder::build_components(val.clone()) {
                         openapi.set_components(components.object);
                     }
                 }

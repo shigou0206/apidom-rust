@@ -1,742 +1,534 @@
 use apidom_ast::minim_model::*;
 use apidom_ast::fold::Fold;
-use crate::elements::components::ComponentsElement;
 use serde_json::Value;
+use crate::elements::components::ComponentsElement;
 
-/// Enhanced Components builder with full TypeScript visitor equivalence
-/// 
-/// This function provides comprehensive functionality equivalent to the TypeScript ComponentsVisitor:
-/// - Individual component field processing (schemas, responses, parameters, etc.)
-/// - Reference detection and metadata injection for each component type
-/// - Key-name metadata injection (schema-name, response-name, etc.)
-/// - Recursive processing of component sub-elements
-/// - Specification extensions support
-/// - Complete metadata annotation system
-/// - Fallback behavior for unknown fields
-pub fn build_and_decorate_components<F>(
-    element: &Element,
-    mut folder: Option<&mut F>
-) -> Option<ComponentsElement>
-where
-    F: Fold,
-{
-    let obj = element.as_object()?;
-    let mut components = ComponentsElement::new();
-    
-    // Add processing metadata
-    add_processing_metadata(&mut components);
-    add_spec_path_metadata(&mut components);
-    
-    // Check if it's a reference
-    if let Some(ref_value) = obj.get("$ref") {
-        if let Some(ref_str) = ref_value.as_string() {
-            components.object.set("$ref", Element::String(ref_str.clone()));
-            add_ref_metadata(&mut components, &ref_str.content);
-            return Some(components);
-        }
+/// Basic components builder (fallback)
+pub fn build_components(element: Element) -> Option<ComponentsElement> {
+    if let Element::Object(obj) = element {
+        Some(ComponentsElement::with_content(obj))
+    } else {
+        None
     }
-
-    // Process all object members with enhanced visitor pattern
-    for member in &obj.content {
-        if let Element::String(key_str) = member.key.as_ref() {
-            let key = &key_str.content;
-            let value = member.value.as_ref();
-            
-            match key.as_str() {
-                "schemas" => {
-                    if let Some(processed) = process_schemas_field(value, folder.as_deref_mut()) {
-                        components.set_schemas(processed);
-                        add_field_metadata(&mut components, "schemas", "ComponentsSchemasElement");
-                    }
-                }
-                "responses" => {
-                    if let Some(processed) = process_responses_field(value, folder.as_deref_mut()) {
-                        components.set_responses(processed);
-                        add_field_metadata(&mut components, "responses", "ComponentsResponsesElement");
-                    }
-                }
-                "parameters" => {
-                    if let Some(processed) = process_parameters_field(value, folder.as_deref_mut()) {
-                        components.set_parameters(processed);
-                        add_field_metadata(&mut components, "parameters", "ComponentsParametersElement");
-                    }
-                }
-                "examples" => {
-                    if let Some(processed) = process_examples_field(value, folder.as_deref_mut()) {
-                        components.set_examples(processed);
-                        add_field_metadata(&mut components, "examples", "ComponentsExamplesElement");
-                    }
-                }
-                "requestBodies" => {
-                    if let Some(processed) = process_request_bodies_field(value, folder.as_deref_mut()) {
-                        components.set_request_bodies(processed);
-                        add_field_metadata(&mut components, "requestBodies", "ComponentsRequestBodiesElement");
-                    }
-                }
-                "headers" => {
-                    if let Some(processed) = process_headers_field(value, folder.as_deref_mut()) {
-                        components.set_headers(processed);
-                        add_field_metadata(&mut components, "headers", "ComponentsHeadersElement");
-                    }
-                }
-                "securitySchemes" => {
-                    if let Some(processed) = process_security_schemes_field(value, folder.as_deref_mut()) {
-                        components.set_security_schemes(processed);
-                        add_field_metadata(&mut components, "securitySchemes", "ComponentsSecuritySchemesElement");
-                    }
-                }
-                "links" => {
-                    if let Some(processed) = process_links_field(value, folder.as_deref_mut()) {
-                        components.set_links(processed);
-                        add_field_metadata(&mut components, "links", "ComponentsLinksElement");
-                    }
-                }
-                "callbacks" => {
-                    if let Some(processed) = process_callbacks_field(value, folder.as_deref_mut()) {
-                        components.set_callbacks(processed);
-                        add_field_metadata(&mut components, "callbacks", "ComponentsCallbacksElement");
-                    }
-                }
-                _ if key.starts_with("x-") => {
-                    // Handle specification extensions
-                    components.object.set(key, value.clone());
-                    add_specification_extension_metadata(&mut components, key);
-                }
-                _ => {
-                    // Unknown field - add with fallback metadata
-                    components.object.set(key, value.clone());
-                    add_unknown_field_metadata(&mut components, key);
-                }
-            }
-        }
-    }
-
-    Some(components)
 }
 
-/// Process schemas field equivalent to ComponentsSchemasVisitor
-fn process_schemas_field<F>(value: &Element, mut folder: Option<&mut F>) -> Option<ObjectElement>
-where
-    F: Fold,
-{
-    let obj = value.as_object()?;
-    let mut schemas_obj = obj.clone();
-    
-    // Process each schema entry
-    for member in &mut schemas_obj.content {
-        if let Element::String(key_str) = member.key.as_ref() {
-            let schema_name = &key_str.content;
-            
-            if let Element::Object(schema_obj) = member.value.as_mut() {
-                // Check if it's a reference
-                if let Some(ref_value) = schema_obj.get("$ref") {
-                    if let Some(ref_str) = ref_value.as_string() {
-                        // Add reference metadata
-                        schema_obj.meta.properties.insert(
-                            "referenced-element".to_string(),
-                            Value::String("schema".to_string())
-                        );
-                        schema_obj.meta.properties.insert(
-                            "reference-path".to_string(),
-                            Value::String(ref_str.content.clone())
-                        );
-                        schema_obj.classes.content.push(Element::String(StringElement::new("reference")));
-                        schema_obj.classes.content.push(Element::String(StringElement::new("schema-reference")));
-                    }
-                } else {
-                    // Process as actual schema using folder if available
-                    if let Some(f) = folder.as_deref_mut() {
-                        schema_obj.set_element_type("schema");
-                        let folded = f.fold_object_element(schema_obj.clone());
-                        if let Element::Object(folded_obj) = folded {
-                            *schema_obj = folded_obj;
+/// Enhanced components builder with metadata injection and reference handling
+/// Fully equivalent to TypeScript ComponentsVisitor with all 9 component visitors
+pub fn build_and_decorate_components(
+    element: Element,
+    folder: Option<&mut dyn Fold>,
+) -> Option<ComponentsElement> {
+    if let Element::Object(obj) = element {
+        let mut components_element = ComponentsElement::with_content(obj);
+        
+        // Collect extension fields first to avoid borrow conflicts
+        let mut has_extensions = false;
+        
+        // Process individual component fields with recursive folding
+        if let Some(folder) = folder {
+            for member in &mut components_element.object.content {
+                if let Element::String(key_elem) = &*member.key {
+                    let field_name = &key_elem.content;
+                    
+                    match field_name.as_str() {
+                        "schemas" => {
+                            process_schemas_field(&mut *member.value, folder);
+                        }
+                        "responses" => {
+                            process_responses_field(&mut *member.value, folder);
+                        }
+                        "parameters" => {
+                            process_parameters_field(&mut *member.value, folder);
+                        }
+                        "examples" => {
+                            process_examples_field(&mut *member.value, folder);
+                        }
+                        "requestBodies" => {
+                            process_request_bodies_field(&mut *member.value, folder);
+                        }
+                        "headers" => {
+                            process_headers_field(&mut *member.value, folder);
+                        }
+                        "securitySchemes" => {
+                            process_security_schemes_field(&mut *member.value, folder);
+                        }
+                        "links" => {
+                            process_links_field(&mut *member.value, folder);
+                        }
+                        "callbacks" => {
+                            process_callbacks_field(&mut *member.value, folder);
+                        }
+                        _ => {
+                            // Handle specification extensions or unknown fields
+                            if field_name.starts_with("x-") {
+                                has_extensions = true;
+                            }
                         }
                     }
                 }
+            }
+        }
+        
+        // Add metadata after processing
+        add_processing_metadata(&mut components_element);
+        if has_extensions {
+            add_specification_extension_metadata(&mut components_element);
+        }
+        
+        Some(components_element)
+    } else {
+        None
+    }
+}
+
+// Individual component field processors (equivalent to TypeScript Visitors)
+
+/// Process schemas field (equivalent to SchemasVisitor)
+fn process_schemas_field(field_element: &mut Element, folder: &mut dyn Fold) {
+    process_component_field_with_spec_path(
+        field_element, 
+        "schema", 
+        &["document", "objects", "Schema"],
+        &["document", "objects", "Reference"],
+        folder
+    );
+}
+
+/// Process responses field (equivalent to ResponsesVisitor)
+fn process_responses_field(field_element: &mut Element, folder: &mut dyn Fold) {
+    process_component_field_with_spec_path(
+        field_element, 
+        "response", 
+        &["document", "objects", "Response"],
+        &["document", "objects", "Reference"],
+        folder
+    );
+    inject_response_status_codes(field_element);
+}
+
+/// Process parameters field (equivalent to ParametersVisitor)
+fn process_parameters_field(field_element: &mut Element, folder: &mut dyn Fold) {
+    process_component_field_with_spec_path(
+        field_element, 
+        "parameter", 
+        &["document", "objects", "Parameter"],
+        &["document", "objects", "Reference"],
+        folder
+    );
+    inject_parameter_names(field_element);
+}
+
+/// Process examples field (equivalent to ExamplesVisitor)
+fn process_examples_field(field_element: &mut Element, folder: &mut dyn Fold) {
+    process_component_field_with_spec_path(
+        field_element, 
+        "example", 
+        &["document", "objects", "Example"],
+        &["document", "objects", "Reference"],
+        folder
+    );
+    inject_example_names(field_element);
+}
+
+/// Process requestBodies field (equivalent to RequestBodiesVisitor)
+fn process_request_bodies_field(field_element: &mut Element, folder: &mut dyn Fold) {
+    process_component_field_with_spec_path(
+        field_element, 
+        "requestBody", 
+        &["document", "objects", "RequestBody"],
+        &["document", "objects", "Reference"],
+        folder
+    );
+}
+
+/// Process headers field (equivalent to HeadersVisitor)
+fn process_headers_field(field_element: &mut Element, folder: &mut dyn Fold) {
+    process_component_field_with_spec_path(
+        field_element, 
+        "header", 
+        &["document", "objects", "Header"],
+        &["document", "objects", "Reference"],
+        folder
+    );
+    inject_header_names(field_element);
+}
+
+/// Process securitySchemes field (equivalent to SecuritySchemesVisitor)
+fn process_security_schemes_field(field_element: &mut Element, folder: &mut dyn Fold) {
+    process_component_field_with_spec_path(
+        field_element, 
+        "securityScheme", 
+        &["document", "objects", "SecurityScheme"],
+        &["document", "objects", "Reference"],
+        folder
+    );
+}
+
+/// Process links field (equivalent to LinksVisitor)
+fn process_links_field(field_element: &mut Element, folder: &mut dyn Fold) {
+    process_component_field_with_spec_path(
+        field_element, 
+        "link", 
+        &["document", "objects", "Link"],
+        &["document", "objects", "Reference"],
+        folder
+    );
+    inject_link_names(field_element);
+}
+
+/// Process callbacks field (equivalent to CallbacksVisitor)
+fn process_callbacks_field(field_element: &mut Element, folder: &mut dyn Fold) {
+    process_component_field_with_spec_path(
+        field_element, 
+        "callback", 
+        &["document", "objects", "Callback"],
+        &["document", "objects", "Reference"],
+        folder
+    );
+}
+
+/// Enhanced component field processor with SpecPath support
+/// Equivalent to TypeScript MapVisitor + FallbackVisitor with specPath
+fn process_component_field_with_spec_path(
+    field_element: &mut Element, 
+    component_type: &str,
+    definition_spec_path: &[&str],
+    reference_spec_path: &[&str],
+    folder: &mut dyn Fold
+) {
+    if let Element::Object(field_obj) = field_element {
+        for field_member in &mut field_obj.content {
+            if let Element::String(key_elem) = &*field_member.key {
+                let component_key = &key_elem.content;
                 
-                // Add schema name metadata
-                schema_obj.meta.properties.insert(
-                    "schema-name".to_string(),
-                    Value::String(schema_name.clone())
-                );
-                schema_obj.meta.properties.insert(
-                    "component-type".to_string(),
-                    Value::String("schema".to_string())
-                );
+                // Check if it's a reference (equivalent to isReferenceLikeElement)
+                if is_reference(&*field_member.value) {
+                    // Inject reference metadata
+                    inject_reference_metadata(&mut *field_member.value, component_type);
+                    // Add reference-element class
+                    add_reference_class(&mut *field_member.value);
+                    // Add reference spec path
+                    inject_spec_path_metadata(&mut *field_member.value, reference_spec_path);
+                } else {
+                    // Process non-reference components recursively
+                    let processed = folder.fold_element((*field_member.value).clone());
+                    *field_member.value = processed;
+                    
+                    // Add component type class
+                    add_component_type_class(&mut *field_member.value, component_type);
+                    // Add definition spec path
+                    inject_spec_path_metadata(&mut *field_member.value, definition_spec_path);
+                }
+                
+                // Inject component key metadata for semantic access
+                inject_component_key_metadata(&mut *field_member.value, component_key, component_type);
+                
+                // Add element type metadata (equivalent to TypeScript element filtering)
+                inject_element_type_metadata(&mut *field_member.value, component_type);
             }
         }
     }
-    
-    Some(schemas_obj)
 }
 
-/// Process responses field equivalent to ComponentsResponsesVisitor
-fn process_responses_field<F>(value: &Element, mut folder: Option<&mut F>) -> Option<ObjectElement>
-where
-    F: Fold,
-{
-    let obj = value.as_object()?;
-    let mut responses_obj = obj.clone();
-    
-    // Process each response entry
-    for member in &mut responses_obj.content {
-        if let Element::String(key_str) = member.key.as_ref() {
-            let response_name = &key_str.content;
-            
-            if let Element::Object(response_obj) = member.value.as_mut() {
-                // Check if it's a reference
-                if let Some(ref_value) = response_obj.get("$ref") {
-                    if let Some(ref_str) = ref_value.as_string() {
-                        // Add reference metadata
+/// Check if element is a reference (equivalent to isReferenceLikeElement)
+fn is_reference(element: &Element) -> bool {
+    if let Element::Object(obj) = element {
+        for member in &obj.content {
+            if let Element::String(key_elem) = &*member.key {
+                if key_elem.content == "$ref" {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+// Enhanced metadata injection functions
+
+/// Inject reference metadata for referenced elements
+fn inject_reference_metadata(element: &mut Element, referenced_type: &str) {
+    if let Element::Object(obj) = element {
+        // Add referenced-element metadata
+        obj.meta.properties.insert(
+            "referenced-element".to_string(),
+            Value::String(referenced_type.to_string())
+        );
+        
+        // Extract and store the reference path
+        for member in &obj.content {
+            if let Element::String(key_elem) = &*member.key {
+                if key_elem.content == "$ref" {
+                    if let Element::String(ref_value) = &*member.value {
+                        obj.meta.properties.insert(
+                            "reference-path".to_string(),
+                            Value::String(ref_value.content.clone())
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Inject SpecPath metadata (equivalent to TypeScript specPath)
+fn inject_spec_path_metadata(element: &mut Element, spec_path: &[&str]) {
+    if let Element::Object(obj) = element {
+        let path_values: Vec<Value> = spec_path.iter()
+            .map(|s| Value::String(s.to_string()))
+            .collect();
+        
+        obj.meta.properties.insert(
+            "spec-path".to_string(),
+            Value::Array(path_values)
+        );
+    }
+}
+
+/// Inject element type metadata for filtering (equivalent to TypeScript element filtering)
+fn inject_element_type_metadata(element: &mut Element, element_type: &str) {
+    if let Element::Object(obj) = element {
+        obj.meta.properties.insert(
+            "element-type".to_string(),
+            Value::String(element_type.to_string())
+        );
+        
+        // Add filter metadata (equivalent to TypeScript filter predicates)
+        let filter_key = format!("is-{}-element", element_type);
+        obj.meta.properties.insert(
+            filter_key,
+            Value::Bool(true)
+        );
+    }
+}
+
+/// Inject component key metadata for semantic access
+fn inject_component_key_metadata(element: &mut Element, key: &str, component_type: &str) {
+    if let Element::Object(obj) = element {
+        // Inject key-specific metadata based on component type
+        let meta_key = match component_type {
+            "header" => "header-name",
+            "response" => "http-status-code", 
+            "parameter" => "parameter-name",
+            "example" => "example-name",
+            "link" => "link-name",
+            "schema" => "schema-name",
+            "callback" => "callback-name",
+            "securityScheme" => "security-scheme-name",
+            "requestBody" => "request-body-name",
+            _ => "component-key"
+        };
+        
+        obj.meta.properties.insert(
+            meta_key.to_string(),
+            Value::String(key.to_string())
+        );
+        
+        // Also add generic component-name for consistency
+        obj.meta.properties.insert(
+            "component-name".to_string(),
+            Value::String(key.to_string())
+        );
+        
+        obj.meta.properties.insert(
+            "component-type".to_string(),
+            Value::String(component_type.to_string())
+        );
+    }
+}
+
+/// Add reference-element class
+fn add_reference_class(element: &mut Element) {
+    if let Element::Object(obj) = element {
+        obj.classes.content.push(Element::String(StringElement::new("reference-element")));
+    }
+}
+
+/// Add component type class
+fn add_component_type_class(element: &mut Element, component_type: &str) {
+    if let Element::Object(obj) = element {
+        obj.classes.content.push(Element::String(StringElement::new(component_type)));
+    }
+}
+
+// Specialized key name injection functions
+
+/// Inject HTTP status codes for response components
+fn inject_response_status_codes(field_element: &mut Element) {
+    if let Element::Object(field_obj) = field_element {
+        for field_member in &mut field_obj.content {
+            if let Element::String(key_elem) = &*field_member.key {
+                let status_code = &key_elem.content;
+                
+                // Check if it's a valid HTTP status code pattern
+                if is_http_status_code(status_code) {
+                    if let Element::Object(response_obj) = &mut *field_member.value {
                         response_obj.meta.properties.insert(
-                            "referenced-element".to_string(),
-                            Value::String("response".to_string())
+                            "http-status-code".to_string(),
+                            Value::String(status_code.clone())
                         );
+                        
+                        // Add status code category
+                        let category = get_status_code_category(status_code);
                         response_obj.meta.properties.insert(
-                            "reference-path".to_string(),
-                            Value::String(ref_str.content.clone())
+                            "status-code-category".to_string(),
+                            Value::String(category.to_string())
                         );
-                        response_obj.classes.content.push(Element::String(StringElement::new("reference")));
-                        response_obj.classes.content.push(Element::String(StringElement::new("response-reference")));
-                    }
-                } else {
-                    // Process as actual response using folder if available
-                    if let Some(f) = folder.as_deref_mut() {
-                        response_obj.set_element_type("response");
-                        let folded = f.fold_object_element(response_obj.clone());
-                        if let Element::Object(folded_obj) = folded {
-                            *response_obj = folded_obj;
-                        }
                     }
                 }
-                
-                // Add response name metadata (equivalent to http-status-code)
-                response_obj.meta.properties.insert(
-                    "response-name".to_string(),
-                    Value::String(response_name.clone())
-                );
-                response_obj.meta.properties.insert(
-                    "http-status-code".to_string(),
-                    Value::String(response_name.clone())
-                );
-                response_obj.meta.properties.insert(
-                    "component-type".to_string(),
-                    Value::String("response".to_string())
-                );
             }
         }
     }
-    
-    Some(responses_obj)
 }
 
-/// Process parameters field equivalent to ComponentsParametersVisitor
-fn process_parameters_field<F>(value: &Element, mut folder: Option<&mut F>) -> Option<ObjectElement>
-where
-    F: Fold,
-{
-    let obj = value.as_object()?;
-    let mut parameters_obj = obj.clone();
-    
-    // Process each parameter entry
-    for member in &mut parameters_obj.content {
-        if let Element::String(key_str) = member.key.as_ref() {
-            let param_name = &key_str.content;
-            
-            if let Element::Object(param_obj) = member.value.as_mut() {
-                // Check if it's a reference
-                if let Some(ref_value) = param_obj.get("$ref") {
-                    if let Some(ref_str) = ref_value.as_string() {
-                        // Add reference metadata
-                        param_obj.meta.properties.insert(
-                            "referenced-element".to_string(),
-                            Value::String("parameter".to_string())
-                        );
-                        param_obj.meta.properties.insert(
-                            "reference-path".to_string(),
-                            Value::String(ref_str.content.clone())
-                        );
-                        param_obj.classes.content.push(Element::String(StringElement::new("reference")));
-                        param_obj.classes.content.push(Element::String(StringElement::new("parameter-reference")));
-                    }
-                } else {
-                    // Process as actual parameter using folder if available
-                    if let Some(f) = folder.as_deref_mut() {
-                        param_obj.set_element_type("parameter");
-                        let folded = f.fold_object_element(param_obj.clone());
-                        if let Element::Object(folded_obj) = folded {
-                            *param_obj = folded_obj;
-                        }
-                    }
-                }
+/// Inject header names
+fn inject_header_names(field_element: &mut Element) {
+    if let Element::Object(field_obj) = field_element {
+        for field_member in &mut field_obj.content {
+            if let Element::String(key_elem) = &*field_member.key {
+                let header_name = &key_elem.content;
                 
-                // Add parameter name metadata
-                param_obj.meta.properties.insert(
-                    "parameter-name".to_string(),
-                    Value::String(param_name.clone())
-                );
-                param_obj.meta.properties.insert(
-                    "component-type".to_string(),
-                    Value::String("parameter".to_string())
-                );
+                if let Element::Object(header_obj) = &mut *field_member.value {
+                    header_obj.meta.properties.insert(
+                        "header-name".to_string(),
+                        Value::String(header_name.clone())
+                    );
+                    
+                    // Add header type classification
+                    let header_type = classify_header_type(header_name);
+                    header_obj.meta.properties.insert(
+                        "header-type".to_string(),
+                        Value::String(header_type.to_string())
+                    );
+                }
             }
         }
     }
-    
-    Some(parameters_obj)
 }
 
-/// Process examples field equivalent to ComponentsExamplesVisitor
-fn process_examples_field<F>(value: &Element, mut folder: Option<&mut F>) -> Option<ObjectElement>
-where
-    F: Fold,
-{
-    let obj = value.as_object()?;
-    let mut examples_obj = obj.clone();
-    
-    // Process each example entry
-    for member in &mut examples_obj.content {
-        if let Element::String(key_str) = member.key.as_ref() {
-            let example_name = &key_str.content;
-            
-            if let Element::Object(example_obj) = member.value.as_mut() {
-                // Check if it's a reference
-                if let Some(ref_value) = example_obj.get("$ref") {
-                    if let Some(ref_str) = ref_value.as_string() {
-                        // Add reference metadata
-                        example_obj.meta.properties.insert(
-                            "referenced-element".to_string(),
-                            Value::String("example".to_string())
-                        );
-                        example_obj.meta.properties.insert(
-                            "reference-path".to_string(),
-                            Value::String(ref_str.content.clone())
-                        );
-                        example_obj.classes.content.push(Element::String(StringElement::new("reference")));
-                        example_obj.classes.content.push(Element::String(StringElement::new("example-reference")));
-                    }
-                } else {
-                    // Process as actual example using folder if available
-                    if let Some(f) = folder.as_deref_mut() {
-                        example_obj.set_element_type("example");
-                        let folded = f.fold_object_element(example_obj.clone());
-                        if let Element::Object(folded_obj) = folded {
-                            *example_obj = folded_obj;
-                        }
-                    }
-                }
+/// Inject parameter names
+fn inject_parameter_names(field_element: &mut Element) {
+    if let Element::Object(field_obj) = field_element {
+        for field_member in &mut field_obj.content {
+            if let Element::String(key_elem) = &*field_member.key {
+                let param_name = &key_elem.content;
                 
-                // Add example name metadata
-                example_obj.meta.properties.insert(
-                    "example-name".to_string(),
-                    Value::String(example_name.clone())
-                );
-                example_obj.meta.properties.insert(
-                    "component-type".to_string(),
-                    Value::String("example".to_string())
-                );
+                if let Element::Object(param_obj) = &mut *field_member.value {
+                    param_obj.meta.properties.insert(
+                        "parameter-name".to_string(),
+                        Value::String(param_name.clone())
+                    );
+                }
             }
         }
     }
-    
-    Some(examples_obj)
 }
 
-/// Process requestBodies field equivalent to ComponentsRequestBodiesVisitor
-fn process_request_bodies_field<F>(value: &Element, mut folder: Option<&mut F>) -> Option<ObjectElement>
-where
-    F: Fold,
-{
-    let obj = value.as_object()?;
-    let mut request_bodies_obj = obj.clone();
-    
-    // Process each request body entry
-    for member in &mut request_bodies_obj.content {
-        if let Element::String(key_str) = member.key.as_ref() {
-            let request_body_name = &key_str.content;
-            
-            if let Element::Object(request_body_obj) = member.value.as_mut() {
-                // Check if it's a reference
-                if let Some(ref_value) = request_body_obj.get("$ref") {
-                    if let Some(ref_str) = ref_value.as_string() {
-                        // Add reference metadata
-                        request_body_obj.meta.properties.insert(
-                            "referenced-element".to_string(),
-                            Value::String("requestBody".to_string())
-                        );
-                        request_body_obj.meta.properties.insert(
-                            "reference-path".to_string(),
-                            Value::String(ref_str.content.clone())
-                        );
-                        request_body_obj.classes.content.push(Element::String(StringElement::new("reference")));
-                        request_body_obj.classes.content.push(Element::String(StringElement::new("request-body-reference")));
-                    }
-                } else {
-                    // Process as actual request body using folder if available
-                    if let Some(f) = folder.as_deref_mut() {
-                        request_body_obj.set_element_type("requestBody");
-                        let folded = f.fold_object_element(request_body_obj.clone());
-                        if let Element::Object(folded_obj) = folded {
-                            *request_body_obj = folded_obj;
-                        }
-                    }
-                }
+/// Inject example names
+fn inject_example_names(field_element: &mut Element) {
+    if let Element::Object(field_obj) = field_element {
+        for field_member in &mut field_obj.content {
+            if let Element::String(key_elem) = &*field_member.key {
+                let example_name = &key_elem.content;
                 
-                // Add request body name metadata
-                request_body_obj.meta.properties.insert(
-                    "request-body-name".to_string(),
-                    Value::String(request_body_name.clone())
-                );
-                request_body_obj.meta.properties.insert(
-                    "component-type".to_string(),
-                    Value::String("requestBody".to_string())
-                );
+                if let Element::Object(example_obj) = &mut *field_member.value {
+                    example_obj.meta.properties.insert(
+                        "example-name".to_string(),
+                        Value::String(example_name.clone())
+                    );
+                }
             }
         }
     }
-    
-    Some(request_bodies_obj)
 }
 
-/// Process headers field equivalent to ComponentsHeadersVisitor
-fn process_headers_field<F>(value: &Element, mut folder: Option<&mut F>) -> Option<ObjectElement>
-where
-    F: Fold,
-{
-    let obj = value.as_object()?;
-    let mut headers_obj = obj.clone();
-    
-    // Process each header entry
-    for member in &mut headers_obj.content {
-        if let Element::String(key_str) = member.key.as_ref() {
-            let header_name = &key_str.content;
-            
-            if let Element::Object(header_obj) = member.value.as_mut() {
-                // Check if it's a reference
-                if let Some(ref_value) = header_obj.get("$ref") {
-                    if let Some(ref_str) = ref_value.as_string() {
-                        // Add reference metadata
-                        header_obj.meta.properties.insert(
-                            "referenced-element".to_string(),
-                            Value::String("header".to_string())
-                        );
-                        header_obj.meta.properties.insert(
-                            "reference-path".to_string(),
-                            Value::String(ref_str.content.clone())
-                        );
-                        header_obj.classes.content.push(Element::String(StringElement::new("reference")));
-                        header_obj.classes.content.push(Element::String(StringElement::new("header-reference")));
-                    }
-                } else {
-                    // Process as actual header using folder if available
-                    if let Some(f) = folder.as_deref_mut() {
-                        header_obj.set_element_type("header");
-                        let folded = f.fold_object_element(header_obj.clone());
-                        if let Element::Object(folded_obj) = folded {
-                            *header_obj = folded_obj;
-                        }
-                    }
-                }
+/// Inject link names
+fn inject_link_names(field_element: &mut Element) {
+    if let Element::Object(field_obj) = field_element {
+        for field_member in &mut field_obj.content {
+            if let Element::String(key_elem) = &*field_member.key {
+                let link_name = &key_elem.content;
                 
-                // Add header name metadata (equivalent to TypeScript header-name)
-                header_obj.meta.properties.insert(
-                    "header-name".to_string(),
-                    Value::String(header_name.clone())
-                );
-                header_obj.meta.properties.insert(
-                    "header-name-metadata".to_string(),
-                    Value::String(header_name.clone())
-                );
-                header_obj.meta.properties.insert(
-                    "is-header".to_string(),
-                    Value::Bool(true)
-                );
-                header_obj.meta.properties.insert(
-                    "component-type".to_string(),
-                    Value::String("header".to_string())
-                );
+                if let Element::Object(link_obj) = &mut *field_member.value {
+                    link_obj.meta.properties.insert(
+                        "link-name".to_string(),
+                        Value::String(link_name.clone())
+                    );
+                }
             }
         }
     }
-    
-    Some(headers_obj)
 }
 
-/// Process securitySchemes field equivalent to ComponentsSecuritySchemesVisitor
-fn process_security_schemes_field<F>(value: &Element, mut folder: Option<&mut F>) -> Option<ObjectElement>
-where
-    F: Fold,
-{
-    let obj = value.as_object()?;
-    let mut security_schemes_obj = obj.clone();
-    
-    // Process each security scheme entry
-    for member in &mut security_schemes_obj.content {
-        if let Element::String(key_str) = member.key.as_ref() {
-            let scheme_name = &key_str.content;
-            
-            if let Element::Object(scheme_obj) = member.value.as_mut() {
-                // Check if it's a reference
-                if let Some(ref_value) = scheme_obj.get("$ref") {
-                    if let Some(ref_str) = ref_value.as_string() {
-                        // Add reference metadata
-                        scheme_obj.meta.properties.insert(
-                            "referenced-element".to_string(),
-                            Value::String("securityScheme".to_string())
-                        );
-                        scheme_obj.meta.properties.insert(
-                            "reference-path".to_string(),
-                            Value::String(ref_str.content.clone())
-                        );
-                        scheme_obj.classes.content.push(Element::String(StringElement::new("reference")));
-                        scheme_obj.classes.content.push(Element::String(StringElement::new("security-scheme-reference")));
-                    }
-                } else {
-                    // Process as actual security scheme using folder if available
-                    if let Some(f) = folder.as_deref_mut() {
-                        scheme_obj.set_element_type("securityScheme");
-                        let folded = f.fold_object_element(scheme_obj.clone());
-                        if let Element::Object(folded_obj) = folded {
-                            *scheme_obj = folded_obj;
-                        }
-                    }
-                }
-                
-                // Add security scheme name metadata
-                scheme_obj.meta.properties.insert(
-                    "security-scheme-name".to_string(),
-                    Value::String(scheme_name.clone())
-                );
-                scheme_obj.meta.properties.insert(
-                    "component-type".to_string(),
-                    Value::String("securityScheme".to_string())
-                );
+// Helper functions
+
+/// Check if string is a valid HTTP status code
+fn is_http_status_code(code: &str) -> bool {
+    // Check for exact status codes (100-599) or patterns like "2XX", "4XX"
+    if code.len() == 3 {
+        if let Ok(num) = code.parse::<u16>() {
+            return (100..=599).contains(&num);
+        }
+        // Check for patterns like "2XX"
+        if code.ends_with("XX") && code.len() == 3 {
+            if let Ok(first_digit) = code.chars().next().unwrap().to_string().parse::<u8>() {
+                return (1..=5).contains(&first_digit);
             }
         }
     }
-    
-    Some(security_schemes_obj)
+    code == "default"
 }
 
-/// Process links field equivalent to ComponentsLinksVisitor
-fn process_links_field<F>(value: &Element, mut folder: Option<&mut F>) -> Option<ObjectElement>
-where
-    F: Fold,
-{
-    let obj = value.as_object()?;
-    let mut links_obj = obj.clone();
-    
-    // Process each link entry
-    for member in &mut links_obj.content {
-        if let Element::String(key_str) = member.key.as_ref() {
-            let link_name = &key_str.content;
-            
-            if let Element::Object(link_obj) = member.value.as_mut() {
-                // Check if it's a reference
-                if let Some(ref_value) = link_obj.get("$ref") {
-                    if let Some(ref_str) = ref_value.as_string() {
-                        // Add reference metadata
-                        link_obj.meta.properties.insert(
-                            "referenced-element".to_string(),
-                            Value::String("link".to_string())
-                        );
-                        link_obj.meta.properties.insert(
-                            "reference-path".to_string(),
-                            Value::String(ref_str.content.clone())
-                        );
-                        link_obj.classes.content.push(Element::String(StringElement::new("reference")));
-                        link_obj.classes.content.push(Element::String(StringElement::new("link-reference")));
-                    }
-                } else {
-                    // Process as actual link using folder if available
-                    if let Some(f) = folder.as_deref_mut() {
-                        link_obj.set_element_type("link");
-                        let folded = f.fold_object_element(link_obj.clone());
-                        if let Element::Object(folded_obj) = folded {
-                            *link_obj = folded_obj;
-                        }
-                    }
-                }
-                
-                // Add link name metadata
-                link_obj.meta.properties.insert(
-                    "link-name".to_string(),
-                    Value::String(link_name.clone())
-                );
-                link_obj.meta.properties.insert(
-                    "component-type".to_string(),
-                    Value::String("link".to_string())
-                );
-            }
-        }
+/// Get status code category
+fn get_status_code_category(code: &str) -> &'static str {
+    if code == "default" {
+        return "default";
     }
     
-    Some(links_obj)
+    if code.ends_with("XX") {
+        match code.chars().next().unwrap() {
+            '1' => "informational",
+            '2' => "success", 
+            '3' => "redirection",
+            '4' => "client-error",
+            '5' => "server-error",
+            _ => "unknown"
+        }
+    } else if let Ok(num) = code.parse::<u16>() {
+        match num {
+            100..=199 => "informational",
+            200..=299 => "success",
+            300..=399 => "redirection", 
+            400..=499 => "client-error",
+            500..=599 => "server-error",
+            _ => "unknown"
+        }
+    } else {
+        "unknown"
+    }
 }
 
-/// Process callbacks field equivalent to ComponentsCallbacksVisitor
-fn process_callbacks_field<F>(value: &Element, mut folder: Option<&mut F>) -> Option<ObjectElement>
-where
-    F: Fold,
-{
-    let obj = value.as_object()?;
-    let mut callbacks_obj = obj.clone();
-    
-    // Process each callback entry
-    for member in &mut callbacks_obj.content {
-        if let Element::String(key_str) = member.key.as_ref() {
-            let callback_name = &key_str.content;
-            
-            if let Element::Object(callback_obj) = member.value.as_mut() {
-                // Check if it's a reference
-                if let Some(ref_value) = callback_obj.get("$ref") {
-                    if let Some(ref_str) = ref_value.as_string() {
-                        // Add reference metadata
-                        callback_obj.meta.properties.insert(
-                            "referenced-element".to_string(),
-                            Value::String("callback".to_string())
-                        );
-                        callback_obj.meta.properties.insert(
-                            "reference-path".to_string(),
-                            Value::String(ref_str.content.clone())
-                        );
-                        callback_obj.classes.content.push(Element::String(StringElement::new("reference")));
-                        callback_obj.classes.content.push(Element::String(StringElement::new("callback-reference")));
-                    }
-                } else {
-                    // Process as actual callback using folder if available
-                    if let Some(f) = folder.as_deref_mut() {
-                        callback_obj.set_element_type("callback");
-                        let folded = f.fold_object_element(callback_obj.clone());
-                        if let Element::Object(folded_obj) = folded {
-                            *callback_obj = folded_obj;
-                        }
-                    }
-                }
-                
-                // Add callback name metadata
-                callback_obj.meta.properties.insert(
-                    "callback-name".to_string(),
-                    Value::String(callback_name.clone())
-                );
-                callback_obj.meta.properties.insert(
-                    "component-type".to_string(),
-                    Value::String("callback".to_string())
-                );
-            }
-        }
+/// Classify header type
+fn classify_header_type(header_name: &str) -> &'static str {
+    let lower_name = header_name.to_lowercase();
+    match lower_name.as_str() {
+        name if name.starts_with("x-") => "custom",
+        "content-type" | "accept" | "content-length" | "content-encoding" => "content",
+        "authorization" | "www-authenticate" => "authentication",
+        "cache-control" | "expires" | "etag" | "last-modified" => "caching",
+        "location" | "referer" | "origin" => "navigation",
+        _ => "standard"
     }
-    
-    Some(callbacks_obj)
 }
 
 // Metadata helper functions
-
-/// Add processing metadata to components element
 fn add_processing_metadata(components: &mut ComponentsElement) {
-    components.object.meta.properties.insert(
-        "processing-metadata".to_string(),
-        Value::Bool(true)
-    );
-    components.object.meta.properties.insert(
-        "visitor-type".to_string(),
-        Value::String("ComponentsVisitor".to_string())
-    );
-    components.object.meta.properties.insert(
-        "typescript-equivalent".to_string(),
-        Value::Bool(true)
-    );
-    
-    // Add classes
+    // Add metadata indicating this was processed by the enhanced builder
     components.object.classes.content.push(Element::String(StringElement::new("components")));
     components.object.classes.content.push(Element::String(StringElement::new("openapi-components")));
 }
 
-/// Add spec path metadata
-fn add_spec_path_metadata(components: &mut ComponentsElement) {
-    components.object.meta.properties.insert(
-        "spec-path".to_string(),
-        Value::String("document.objects.Components".to_string())
-    );
-    components.object.meta.properties.insert(
-        "element-type".to_string(),
-        Value::String("components".to_string())
-    );
-}
-
-/// Add reference metadata
-fn add_ref_metadata(components: &mut ComponentsElement, ref_path: &str) {
-    components.object.meta.properties.insert(
-        "referenced-element".to_string(),
-        Value::String("components".to_string())
-    );
-    components.object.meta.properties.insert(
-        "reference-path".to_string(),
-        Value::String(ref_path.to_string())
-    );
-    components.object.meta.properties.insert(
-        "is-reference".to_string(),
-        Value::Bool(true)
-    );
-    
-    // Add reference classes
-    components.object.classes.content.push(Element::String(StringElement::new("reference")));
-    components.object.classes.content.push(Element::String(StringElement::new("components-reference")));
-}
-
-/// Add field-specific metadata
-fn add_field_metadata(components: &mut ComponentsElement, field_name: &str, element_type: &str) {
-    let field_key = format!("fixed-field-{}", field_name);
-    components.object.meta.properties.insert(
-        field_key,
-        Value::Bool(true)
-    );
-    
-    let element_key = format!("{}-element-type", field_name);
-    components.object.meta.properties.insert(
-        element_key,
-        Value::String(element_type.to_string())
-    );
-    
-    let processed_key = format!("{}-processed", field_name);
-    components.object.meta.properties.insert(
-        processed_key,
-        Value::Bool(true)
-    );
-}
-
-/// Add specification extension metadata
-fn add_specification_extension_metadata(components: &mut ComponentsElement, field_name: &str) {
-    components.object.meta.properties.insert(
-        "has-specification-extensions".to_string(),
-        Value::Bool(true)
-    );
-    
-    let ext_key = format!("spec-extension-{}", field_name);
-    components.object.meta.properties.insert(
-        ext_key,
-        Value::Bool(true)
-    );
-    
-    // Add extension class
+fn add_specification_extension_metadata(components: &mut ComponentsElement) {
+    // Add specification extension metadata
     components.object.classes.content.push(Element::String(StringElement::new("specification-extension")));
-}
-
-/// Add unknown field metadata
-fn add_unknown_field_metadata(components: &mut ComponentsElement, field_name: &str) {
-    components.object.meta.properties.insert(
-        "has-unknown-fields".to_string(),
-        Value::Bool(true)
-    );
-    
-    let unknown_key = format!("unknown-field-{}", field_name);
-    components.object.meta.properties.insert(
-        unknown_key,
-        Value::Bool(true)
-    );
-}
-
-/// Legacy build_components function for backward compatibility
-pub fn build_components(element: &Element) -> Option<ComponentsElement> {
-    build_and_decorate_components::<crate::fold::OpenApiBuilderFolder>(element, None)
-}
+} 
