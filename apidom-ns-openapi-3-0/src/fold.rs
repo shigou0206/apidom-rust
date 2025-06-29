@@ -1,6 +1,7 @@
 use apidom_ast::minim_model::*;
 use crate::builder::*;
 use apidom_ast::fold::{Fold, DefaultFolder};
+use crate::builder::paths_builder::build_and_decorate_paths;
 
 /// Fold that transforms a generic Element AST into an OpenAPI 3.0 Element AST.
 #[derive(Debug, Default)]
@@ -32,8 +33,8 @@ impl Fold for OpenApiBuilderFolder {
                 }
             }
             "paths" => {
-                if let Some(built) = build_paths(&Element::Object(element.clone())) {
-                    DefaultFolder.fold_object_element(built.object)
+                if let Some(built) = build_and_decorate_paths(&Element::Object(element.clone()), Some(self)) {
+                    return Element::Object(built.object);
                 } else {
                     DefaultFolder.fold_object_element(element)
                 }
