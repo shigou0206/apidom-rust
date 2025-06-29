@@ -496,7 +496,7 @@ fn create_components_fixed_fields() -> FixedFieldsMap {
 
 /// Create fixed fields map for Paths object
 fn create_paths_fixed_fields() -> FixedFieldsMap {
-    let mut fields = HashMap::new();
+    let fields = HashMap::new();
     // Paths object uses patterned fields (path expressions) rather than fixed fields
     // All fields are PathItem objects or $ref to PathItem objects
     fields
@@ -616,7 +616,7 @@ fn create_response_fixed_fields() -> FixedFieldsMap {
 
 /// Create fixed fields map for Callback object
 fn create_callback_fixed_fields() -> FixedFieldsMap {
-    let mut fields = HashMap::new();
+    let fields = HashMap::new();
     // Callback objects use runtime expressions as keys, so all fields are patterned
     // Each value is a PathItem object or $ref to PathItem
     fields
@@ -780,7 +780,7 @@ fn create_oauth_flow_fixed_fields() -> FixedFieldsMap {
 
 /// Create fixed fields map for SecurityRequirement object
 fn create_security_requirement_fixed_fields() -> FixedFieldsMap {
-    let mut fields = HashMap::new();
+    let fields = HashMap::new();
     // SecurityRequirement is a map of security scheme names to arrays of scope names
     // All fields are patterned (security scheme names)
     fields
