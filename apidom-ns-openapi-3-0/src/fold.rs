@@ -179,8 +179,8 @@ impl Fold for OpenApiBuilderFolder {
                 }
             }
             "license" => {
-                if let Some(built) = build_license(&Element::Object(element.clone())) {
-                    DefaultFolder.fold_object_element(built.object)
+                if let Some(built) = build_and_decorate_license(&Element::Object(element.clone()), Some(self)) {
+                    Element::Object(built.object)
                 } else {
                     DefaultFolder.fold_object_element(element)
                 }
