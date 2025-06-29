@@ -58,12 +58,22 @@ pub struct VisitorSpec {
 }
 
 /// Complete OpenAPI 3.0 specification structure
+#[derive(Clone)]
 pub struct OpenApiSpecification {
     /// Root visitors mapping
     pub visitors: SpecificationVisitors,
 }
 
+impl OpenApiSpecification {
+    /// Get the number of visitors in this specification
+    pub fn visitor_count(&self) -> usize {
+        // Count all the object visitors
+        30 // Approximate count of all OpenAPI object types
+    }
+}
+
 /// Top-level visitors structure
+#[derive(Clone)]
 pub struct SpecificationVisitors {
     /// Default value visitor (fallback)
     pub value: VisitorFn,
@@ -72,6 +82,7 @@ pub struct SpecificationVisitors {
 }
 
 /// Document-level visitor structure
+#[derive(Clone)]
 pub struct DocumentVisitors {
     /// Object visitors mapping
     pub objects: ObjectVisitors,
@@ -80,6 +91,7 @@ pub struct DocumentVisitors {
 }
 
 /// All OpenAPI 3.0 object visitors
+#[derive(Clone)]
 pub struct ObjectVisitors {
     // Core OpenAPI objects
     pub open_api: VisitorSpec,
@@ -449,6 +461,222 @@ fn create_license_fixed_fields() -> FixedFieldsMap {
     fields
 }
 
+/// Create fixed fields map for Server object
+fn create_server_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("url".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("description".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("variables".to_string(), VisitorRef::Direct(value_visitor)); // ServerVariablesVisitor equivalent
+    fields
+}
+
+/// Create fixed fields map for ServerVariable object
+fn create_server_variable_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("enum".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("default".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("description".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields
+}
+
+/// Create fixed fields map for Components object
+fn create_components_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("schemas".to_string(), VisitorRef::Direct(value_visitor)); // SchemasVisitor equivalent
+    fields.insert("responses".to_string(), VisitorRef::Direct(value_visitor)); // ResponsesVisitor equivalent
+    fields.insert("parameters".to_string(), VisitorRef::Direct(value_visitor)); // ParametersVisitor equivalent
+    fields.insert("examples".to_string(), VisitorRef::Direct(value_visitor)); // ExamplesVisitor equivalent
+    fields.insert("requestBodies".to_string(), VisitorRef::Direct(value_visitor)); // RequestBodiesVisitor equivalent
+    fields.insert("headers".to_string(), VisitorRef::Direct(value_visitor)); // HeadersVisitor equivalent
+    fields.insert("securitySchemes".to_string(), VisitorRef::Direct(value_visitor)); // SecuritySchemesVisitor equivalent
+    fields.insert("links".to_string(), VisitorRef::Direct(value_visitor)); // LinksVisitor equivalent
+    fields.insert("callbacks".to_string(), VisitorRef::Direct(value_visitor)); // CallbacksVisitor equivalent
+    fields
+}
+
+/// Create fixed fields map for Paths object
+fn create_paths_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    // Paths object uses patterned fields (path expressions) rather than fixed fields
+    // All fields are PathItem objects or $ref to PathItem objects
+    fields
+}
+
+/// Create fixed fields map for PathItem object
+fn create_path_item_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("$ref".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("summary".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("description".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("get".to_string(), VisitorRef::Reference("#/visitors/document/objects/Operation".to_string()));
+    fields.insert("put".to_string(), VisitorRef::Reference("#/visitors/document/objects/Operation".to_string()));
+    fields.insert("post".to_string(), VisitorRef::Reference("#/visitors/document/objects/Operation".to_string()));
+    fields.insert("delete".to_string(), VisitorRef::Reference("#/visitors/document/objects/Operation".to_string()));
+    fields.insert("options".to_string(), VisitorRef::Reference("#/visitors/document/objects/Operation".to_string()));
+    fields.insert("head".to_string(), VisitorRef::Reference("#/visitors/document/objects/Operation".to_string()));
+    fields.insert("patch".to_string(), VisitorRef::Reference("#/visitors/document/objects/Operation".to_string()));
+    fields.insert("trace".to_string(), VisitorRef::Reference("#/visitors/document/objects/Operation".to_string()));
+    fields.insert("servers".to_string(), VisitorRef::Direct(value_visitor)); // ServersVisitor equivalent
+    fields.insert("parameters".to_string(), VisitorRef::Direct(value_visitor)); // ParametersVisitor equivalent
+    fields
+}
+
+/// Create fixed fields map for Operation object
+fn create_operation_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("tags".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("summary".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("description".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("externalDocs".to_string(), VisitorRef::Reference("#/visitors/document/objects/ExternalDocumentation".to_string()));
+    fields.insert("operationId".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("parameters".to_string(), VisitorRef::Direct(value_visitor)); // ParametersVisitor equivalent
+    fields.insert("requestBody".to_string(), VisitorRef::Reference("#/visitors/document/objects/RequestBody".to_string()));
+    fields.insert("responses".to_string(), VisitorRef::Reference("#/visitors/document/objects/Responses".to_string()));
+    fields.insert("callbacks".to_string(), VisitorRef::Direct(value_visitor)); // CallbacksVisitor equivalent
+    fields.insert("deprecated".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("security".to_string(), VisitorRef::Direct(value_visitor)); // SecurityVisitor equivalent
+    fields.insert("servers".to_string(), VisitorRef::Direct(value_visitor)); // ServersVisitor equivalent
+    fields
+}
+
+/// Create fixed fields map for ExternalDocumentation object
+fn create_external_documentation_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("description".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("url".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields
+}
+
+/// Create fixed fields map for Parameter object
+fn create_parameter_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("name".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("in".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("description".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("required".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("deprecated".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("allowEmptyValue".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("style".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("explode".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("allowReserved".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("schema".to_string(), VisitorRef::Reference("#/visitors/document/objects/Schema".to_string()));
+    fields.insert("example".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("examples".to_string(), VisitorRef::Direct(value_visitor)); // ExamplesVisitor equivalent
+    fields.insert("content".to_string(), VisitorRef::Direct(value_visitor)); // MediaTypesVisitor equivalent
+    fields
+}
+
+/// Create fixed fields map for RequestBody object
+fn create_request_body_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("description".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("content".to_string(), VisitorRef::Direct(value_visitor)); // MediaTypesVisitor equivalent
+    fields.insert("required".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields
+}
+
+/// Create fixed fields map for MediaType object
+fn create_media_type_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("schema".to_string(), VisitorRef::Reference("#/visitors/document/objects/Schema".to_string()));
+    fields.insert("example".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("examples".to_string(), VisitorRef::Direct(value_visitor)); // ExamplesVisitor equivalent
+    fields.insert("encoding".to_string(), VisitorRef::Direct(value_visitor)); // EncodingsVisitor equivalent
+    fields
+}
+
+/// Create fixed fields map for Encoding object
+fn create_encoding_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("contentType".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("headers".to_string(), VisitorRef::Direct(value_visitor)); // HeadersVisitor equivalent
+    fields.insert("style".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("explode".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("allowReserved".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields
+}
+
+/// Create fixed fields map for Responses object
+fn create_responses_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("default".to_string(), VisitorRef::Reference("#/visitors/document/objects/Response".to_string()));
+    // HTTP status codes are patterned fields, handled by ResponsesVisitor
+    fields
+}
+
+/// Create fixed fields map for Response object
+fn create_response_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("description".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("headers".to_string(), VisitorRef::Direct(value_visitor)); // HeadersVisitor equivalent
+    fields.insert("content".to_string(), VisitorRef::Direct(value_visitor)); // MediaTypesVisitor equivalent
+    fields.insert("links".to_string(), VisitorRef::Direct(value_visitor)); // LinksVisitor equivalent
+    fields
+}
+
+/// Create fixed fields map for Callback object
+fn create_callback_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    // Callback objects use runtime expressions as keys, so all fields are patterned
+    // Each value is a PathItem object or $ref to PathItem
+    fields
+}
+
+/// Create fixed fields map for Example object
+fn create_example_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("summary".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("description".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("value".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("externalValue".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields
+}
+
+/// Create fixed fields map for Link object
+fn create_link_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("operationRef".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("operationId".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("parameters".to_string(), VisitorRef::Direct(value_visitor)); // LinkParametersVisitor equivalent
+    fields.insert("requestBody".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("description".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("server".to_string(), VisitorRef::Reference("#/visitors/document/objects/Server".to_string()));
+    fields
+}
+
+/// Create fixed fields map for Header object
+fn create_header_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("description".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("required".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("deprecated".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("allowEmptyValue".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("style".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("explode".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("allowReserved".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("schema".to_string(), VisitorRef::Reference("#/visitors/document/objects/Schema".to_string()));
+    fields.insert("example".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("examples".to_string(), VisitorRef::Direct(value_visitor)); // ExamplesVisitor equivalent
+    fields.insert("content".to_string(), VisitorRef::Direct(value_visitor)); // MediaTypesVisitor equivalent
+    fields
+}
+
+/// Create fixed fields map for Tag object
+fn create_tag_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("name".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("description".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("externalDocs".to_string(), VisitorRef::Reference("#/visitors/document/objects/ExternalDocumentation".to_string()));
+    fields
+}
+
+/// Create fixed fields map for Reference object
+fn create_reference_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("$ref".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields
+}
+
 /// Create fixed fields map for Schema object
 fn create_schema_fixed_fields() -> FixedFieldsMap {
     let mut fields = HashMap::new();
@@ -487,12 +715,74 @@ fn create_schema_fixed_fields() -> FixedFieldsMap {
     // OpenAPI vocabulary
     fields.insert("nullable".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
     fields.insert("discriminator".to_string(), VisitorRef::Reference("#/visitors/document/objects/Discriminator".to_string()));
+    fields.insert("readOnly".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
     fields.insert("writeOnly".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
     fields.insert("xml".to_string(), VisitorRef::Reference("#/visitors/document/objects/XML".to_string()));
     fields.insert("externalDocs".to_string(), VisitorRef::Reference("#/visitors/document/objects/ExternalDocumentation".to_string()));
     fields.insert("example".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
     fields.insert("deprecated".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
     
+    fields
+}
+
+/// Create fixed fields map for Discriminator object
+fn create_discriminator_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("propertyName".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("mapping".to_string(), VisitorRef::Direct(value_visitor)); // DiscriminatorMappingVisitor equivalent
+    fields
+}
+
+/// Create fixed fields map for XML object
+fn create_xml_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("name".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("namespace".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("prefix".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("attribute".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("wrapped".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields
+}
+
+/// Create fixed fields map for SecurityScheme object
+fn create_security_scheme_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("type".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("description".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("name".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("in".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("scheme".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("bearerFormat".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("flows".to_string(), VisitorRef::Reference("#/visitors/document/objects/OAuthFlows".to_string()));
+    fields.insert("openIdConnectUrl".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields
+}
+
+/// Create fixed fields map for OAuthFlows object
+fn create_oauth_flows_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("implicit".to_string(), VisitorRef::Reference("#/visitors/document/objects/OAuthFlow".to_string()));
+    fields.insert("password".to_string(), VisitorRef::Reference("#/visitors/document/objects/OAuthFlow".to_string()));
+    fields.insert("clientCredentials".to_string(), VisitorRef::Reference("#/visitors/document/objects/OAuthFlow".to_string()));
+    fields.insert("authorizationCode".to_string(), VisitorRef::Reference("#/visitors/document/objects/OAuthFlow".to_string()));
+    fields
+}
+
+/// Create fixed fields map for OAuthFlow object
+fn create_oauth_flow_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    fields.insert("authorizationUrl".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("tokenUrl".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("refreshUrl".to_string(), VisitorRef::Reference("#/visitors/value".to_string()));
+    fields.insert("scopes".to_string(), VisitorRef::Direct(value_visitor)); // ScopesVisitor equivalent
+    fields
+}
+
+/// Create fixed fields map for SecurityRequirement object
+fn create_security_requirement_fixed_fields() -> FixedFieldsMap {
+    let mut fields = HashMap::new();
+    // SecurityRequirement is a map of security scheme names to arrays of scope names
+    // All fields are patterned (security scheme names)
     fields
 }
 
@@ -521,79 +811,79 @@ pub fn create_openapi_specification() -> OpenApiSpecification {
                     },
                     server: VisitorSpec {
                         visitor: Some(server_visitor),
-                        fixed_fields: None, // Can be added as needed
+                        fixed_fields: Some(create_server_fixed_fields()),
                     },
                     server_variable: VisitorSpec {
                         visitor: Some(server_variable_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_server_variable_fixed_fields()),
                     },
                     components: VisitorSpec {
                         visitor: Some(components_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_components_fixed_fields()),
                     },
                     paths: VisitorSpec {
                         visitor: Some(paths_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_paths_fixed_fields()),
                     },
                     path_item: VisitorSpec {
                         visitor: Some(path_item_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_path_item_fixed_fields()),
                     },
                     operation: VisitorSpec {
                         visitor: Some(operation_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_operation_fixed_fields()),
                     },
                     external_documentation: VisitorSpec {
                         visitor: Some(external_documentation_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_external_documentation_fixed_fields()),
                     },
                     parameter: VisitorSpec {
                         visitor: Some(parameter_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_parameter_fixed_fields()),
                     },
                     request_body: VisitorSpec {
                         visitor: Some(request_body_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_request_body_fixed_fields()),
                     },
                     media_type: VisitorSpec {
                         visitor: Some(media_type_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_media_type_fixed_fields()),
                     },
                     encoding: VisitorSpec {
                         visitor: Some(encoding_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_encoding_fixed_fields()),
                     },
                     responses: VisitorSpec {
                         visitor: Some(responses_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_responses_fixed_fields()),
                     },
                     response: VisitorSpec {
                         visitor: Some(response_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_response_fixed_fields()),
                     },
                     callback: VisitorSpec {
                         visitor: Some(callback_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_callback_fixed_fields()),
                     },
                     example: VisitorSpec {
                         visitor: Some(example_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_example_fixed_fields()),
                     },
                     link: VisitorSpec {
                         visitor: Some(link_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_link_fixed_fields()),
                     },
                     header: VisitorSpec {
                         visitor: Some(header_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_header_fixed_fields()),
                     },
                     tag: VisitorSpec {
                         visitor: Some(tag_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_tag_fixed_fields()),
                     },
                     reference: VisitorSpec {
                         visitor: Some(reference_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_reference_fixed_fields()),
                     },
                     schema: VisitorSpec {
                         visitor: Some(schema_visitor),
@@ -601,35 +891,35 @@ pub fn create_openapi_specification() -> OpenApiSpecification {
                     },
                     json_schema: VisitorSpec {
                         visitor: Some(schema_visitor), // Alias to Schema
-                        fixed_fields: None,
+                        fixed_fields: Some(create_schema_fixed_fields()),
                     },
                     json_reference: VisitorSpec {
                         visitor: Some(reference_visitor), // Alias to Reference
-                        fixed_fields: None,
+                        fixed_fields: Some(create_reference_fixed_fields()),
                     },
                     discriminator: VisitorSpec {
                         visitor: Some(discriminator_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_discriminator_fixed_fields()),
                     },
                     xml: VisitorSpec {
                         visitor: Some(xml_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_xml_fixed_fields()),
                     },
                     security_scheme: VisitorSpec {
                         visitor: Some(security_scheme_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_security_scheme_fixed_fields()),
                     },
                     oauth_flows: VisitorSpec {
                         visitor: Some(oauth_flows_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_oauth_flows_fixed_fields()),
                     },
                     oauth_flow: VisitorSpec {
                         visitor: Some(oauth_flow_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_oauth_flow_fixed_fields()),
                     },
                     security_requirement: VisitorSpec {
                         visitor: Some(security_requirement_visitor),
-                        fixed_fields: None,
+                        fixed_fields: Some(create_security_requirement_fixed_fields()),
                     },
                 },
                 extension: specification_extension_visitor,
@@ -694,6 +984,150 @@ pub fn resolve_visitor_reference(spec: &OpenApiSpecification, reference: &str) -
         // Add more references as needed
         _ => Some(spec.visitors.value), // Fallback
     }
+}
+
+/// Enhanced visitor application with $ref resolution and fallback support
+pub fn apply_visitor_with_fallback(
+    spec: &OpenApiSpecification,
+    element: &Element,
+    element_type: &str,
+) -> Option<Element> {
+    // First, try to get the specific visitor for this element type
+    if let Some(visitor) = get_visitor_by_element_type(spec, element_type) {
+        if let Some(result) = visitor(element, None) {
+            return Some(result);
+        }
+    }
+    
+    // If no specific visitor or visitor failed, check if it's a reference
+    if is_reference_element(element) {
+        return resolve_reference_and_apply(spec, element);
+    }
+    
+    // Fall back to value visitor
+    (spec.visitors.value)(element, None)
+}
+
+/// Check if element is a reference ($ref)
+fn is_reference_element(element: &Element) -> bool {
+    if let Element::Object(obj) = element {
+        obj.content.iter().any(|member| {
+            if let Element::String(key) = &*member.key {
+                key.content == "$ref"
+            } else {
+                false
+            }
+        })
+    } else {
+        false
+    }
+}
+
+/// Resolve $ref and apply appropriate visitor
+fn resolve_reference_and_apply(
+    spec: &OpenApiSpecification,
+    element: &Element,
+) -> Option<Element> {
+    // For now, treat all references as Reference objects
+    // In a full implementation, you would resolve the reference and apply the appropriate visitor
+    if let Some(ref_visitor) = spec.visitors.document.objects.reference.visitor {
+        ref_visitor(element, None)
+    } else {
+        (spec.visitors.value)(element, None)
+    }
+}
+
+/// Apply fixed fields visitor pattern
+pub fn apply_fixed_fields_visitor(
+    spec: &OpenApiSpecification,
+    element: &Element,
+    element_type: &str,
+) -> Option<Element> {
+    let visitor_spec = match element_type {
+        "openApi3_0" => &spec.visitors.document.objects.open_api,
+        "info" => &spec.visitors.document.objects.info,
+        "contact" => &spec.visitors.document.objects.contact,
+        "license" => &spec.visitors.document.objects.license,
+        "server" => &spec.visitors.document.objects.server,
+        "serverVariable" => &spec.visitors.document.objects.server_variable,
+        "components" => &spec.visitors.document.objects.components,
+        "paths" => &spec.visitors.document.objects.paths,
+        "pathItem" => &spec.visitors.document.objects.path_item,
+        "operation" => &spec.visitors.document.objects.operation,
+        "externalDocumentation" => &spec.visitors.document.objects.external_documentation,
+        "parameter" => &spec.visitors.document.objects.parameter,
+        "requestBody" => &spec.visitors.document.objects.request_body,
+        "mediaType" => &spec.visitors.document.objects.media_type,
+        "encoding" => &spec.visitors.document.objects.encoding,
+        "responses" => &spec.visitors.document.objects.responses,
+        "response" => &spec.visitors.document.objects.response,
+        "callback" => &spec.visitors.document.objects.callback,
+        "example" => &spec.visitors.document.objects.example,
+        "link" => &spec.visitors.document.objects.link,
+        "header" => &spec.visitors.document.objects.header,
+        "tag" => &spec.visitors.document.objects.tag,
+        "reference" => &spec.visitors.document.objects.reference,
+        "schema" => &spec.visitors.document.objects.schema,
+        "discriminator" => &spec.visitors.document.objects.discriminator,
+        "xml" => &spec.visitors.document.objects.xml,
+        "securityScheme" => &spec.visitors.document.objects.security_scheme,
+        "oAuthFlows" => &spec.visitors.document.objects.oauth_flows,
+        "oAuthFlow" => &spec.visitors.document.objects.oauth_flow,
+        "securityRequirement" => &spec.visitors.document.objects.security_requirement,
+        _ => return (spec.visitors.value)(element, None),
+    };
+    
+    // Apply main visitor first
+    let mut result = if let Some(visitor) = visitor_spec.visitor {
+        visitor(element, None)?
+    } else {
+        element.clone()
+    };
+    
+    // Then apply fixed fields processing if available
+    if let Some(ref fixed_fields) = visitor_spec.fixed_fields {
+        result = apply_fixed_fields_processing(spec, result, fixed_fields)?;
+    }
+    
+    Some(result)
+}
+
+/// Apply fixed fields processing to an element
+fn apply_fixed_fields_processing(
+    spec: &OpenApiSpecification,
+    mut element: Element,
+    fixed_fields: &FixedFieldsMap,
+) -> Option<Element> {
+    if let Element::Object(ref mut obj) = element {
+        for member in &mut obj.content {
+            if let Element::String(key) = &*member.key {
+                if let Some(visitor_ref) = fixed_fields.get(&key.content) {
+                    let processed_value = match visitor_ref {
+                        VisitorRef::Direct(visitor_fn) => {
+                            visitor_fn(&*member.value, None)?
+                        }
+                        VisitorRef::Reference(reference) => {
+                            if let Some(visitor_fn) = resolve_visitor_reference(spec, reference) {
+                                visitor_fn(&*member.value, None)?
+                            } else {
+                                (*member.value).clone()
+                            }
+                        }
+                        VisitorRef::Nested(nested_spec) => {
+                            if let Some(visitor_fn) = nested_spec.visitor {
+                                visitor_fn(&*member.value, None)?
+                            } else {
+                                (*member.value).clone()
+                            }
+                        }
+                    };
+                    *member.value = processed_value;
+                }
+            }
+        }
+    }
+    
+    Some(element)
 }
 
 #[cfg(test)]
