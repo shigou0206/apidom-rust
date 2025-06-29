@@ -569,7 +569,8 @@ impl PatternHandler for CallbackExpressionHandler {
 
     fn can_handle(&self, field_name: &str, _field_value: &Element) -> bool {
         // Callback expressions are detected by context, not just field name
-        field_name.contains('{') && field_name.contains('}')
+        // Don't match path templates (which start with '/')
+        field_name.contains('{') && field_name.contains('}') && !field_name.starts_with('/')
     }
 }
 

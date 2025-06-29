@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use apidom_ast::minim_model::{Element, ObjectElement, ArrayElement, StringElement, MemberElement};
-use apidom_ns_openapi_3_0::url_builder::{UrlBuilder, UrlTemplate, extract_server_urls, extract_path_templates, extract_operation_parameters};
+use apidom_ast::minim_model::{Element, ObjectElement, ArrayElement, StringElement};
+use apidom_ns_openapi_3_0::url_builder::{UrlBuilder, UrlTemplate, extract_server_urls, extract_path_templates};
 
 fn main() {
     println!("=== OpenAPI URL 构建演示 ===\n");
