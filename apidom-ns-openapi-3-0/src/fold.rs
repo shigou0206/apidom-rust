@@ -53,8 +53,8 @@ impl Fold for OpenApiBuilderFolder {
                 }
             }
             "parameter" => {
-                if let Some(built) = build_parameter(&Element::Object(element.clone())) {
-                    DefaultFolder.fold_object_element(built.object)
+                if let Some(built) = build_and_decorate_parameter(&Element::Object(element.clone()), Some(self)) {
+                    Element::Object(built.object)
                 } else {
                     DefaultFolder.fold_object_element(element)
                 }
@@ -130,8 +130,8 @@ impl Fold for OpenApiBuilderFolder {
                 }
             }
             "serverVariable" => {
-                if let Some(built) = build_server_variable(&Element::Object(element.clone())) {
-                    DefaultFolder.fold_object_element(built.object)
+                if let Some(built) = build_and_decorate_server_variable(&Element::Object(element.clone()), Some(self)) {
+                    Element::Object(built.object)
                 } else {
                     DefaultFolder.fold_object_element(element)
                 }
@@ -151,8 +151,8 @@ impl Fold for OpenApiBuilderFolder {
                 }
             }
             "xml" => {
-                if let Some(built) = build_xml(&Element::Object(element.clone())) {
-                    DefaultFolder.fold_object_element(built.object)
+                if let Some(built) = build_and_decorate_xml(&Element::Object(element.clone()), Some(self)) {
+                    Element::Object(built.object)
                 } else {
                     DefaultFolder.fold_object_element(element)
                 }
@@ -165,8 +165,8 @@ impl Fold for OpenApiBuilderFolder {
                 }
             }
             "tag" => {
-                if let Some(built) = build_tag(&Element::Object(element.clone())) {
-                    DefaultFolder.fold_object_element(built.object)
+                if let Some(built) = build_and_decorate_tag(&Element::Object(element.clone()), Some(self)) {
+                    Element::Object(built.object)
                 } else {
                     DefaultFolder.fold_object_element(element)
                 }
@@ -193,15 +193,15 @@ impl Fold for OpenApiBuilderFolder {
                 }
             }
             "oAuthFlow" => {
-                if let Some(built) = build_oauth_flow(&Element::Object(element.clone())) {
-                    DefaultFolder.fold_object_element(built.object)
+                if let Some(built) = build_and_decorate_oauth_flow(&Element::Object(element.clone()), Some(self)) {
+                    Element::Object(built.object)
                 } else {
                     DefaultFolder.fold_object_element(element)
                 }
             }
             "oAuthFlows" => {
-                if let Some(built) = build_oauth_flows(&Element::Object(element.clone())) {
-                    DefaultFolder.fold_object_element(built.object)
+                if let Some(built) = build_and_decorate_oauth_flows(&Element::Object(element.clone()), Some(self)) {
+                    Element::Object(built.object)
                 } else {
                     DefaultFolder.fold_object_element(element)
                 }
