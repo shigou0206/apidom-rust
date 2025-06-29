@@ -31,7 +31,7 @@ pub fn build_and_decorate_components(
                     let field_name = &key_elem.content;
                     
                     match field_name.as_str() {
-                        "schemas" => {
+                "schemas" => {
                             process_schemas_field(&mut *member.value, folder);
                         }
                         "responses" => {
@@ -531,4 +531,4 @@ fn add_processing_metadata(components: &mut ComponentsElement) {
 fn add_specification_extension_metadata(components: &mut ComponentsElement) {
     // Add specification extension metadata
     components.object.classes.content.push(Element::String(StringElement::new("specification-extension")));
-} 
+}

@@ -1,0 +1,50 @@
+openapi: "3.0.3"
+info:
+  title: "End-to-End Test API"
+  version: "1.0.0"
+  description: "Testing complete YAML processing pipeline"
+  contact:
+    name: "API Support"
+    email: "support@example.com"
+servers:
+  - url: "https://api.example.com/v1"
+    description: "Production server"
+paths:
+  /users:
+    get:
+      summary: "Get users"
+      responses:
+        '200':
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/User"
+  /pets/{petId}:
+    get:
+      parameters:
+        - name: "petId"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        '200':
+          description: "Pet found"
+components:
+  schemas:
+    User:
+      type: "object"
+      required:
+        - "id"
+        - "name"
+      properties:
+        id:
+          type: "integer"
+        name:
+          type: "string"
+        email:
+          type: "string"
+          format: "email" 

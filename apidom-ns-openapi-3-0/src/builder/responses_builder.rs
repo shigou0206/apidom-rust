@@ -64,7 +64,7 @@ where
     // Start with empty responses element instead of copying all content
     let mut responses = ResponsesElement::new();
     responses.object.set_element_type("responses");
-    
+
     // Process each response with visitor pattern
     for member in &object.content {
         let key_str = match &*member.key {
