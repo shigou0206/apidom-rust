@@ -1,5 +1,4 @@
 use crate::specification::{OpenApiSpecification, apply_fixed_fields_visitor};
-use apidom_ast::fold::Fold;
 use apidom_ast::minim_model::Element;
 use std::collections::HashMap;
 
@@ -88,7 +87,7 @@ impl FoldPipeline {
                 break;
             }
             
-            let previous = current.clone();
+            let _previous = current.clone();
             let mut changed = false;
             
             for pass in &self.passes {
@@ -321,7 +320,7 @@ fn resolve_references_in_element(element: &Element, _cache: &HashMap<String, Ele
         
         if has_ref {
             // For now, just add metadata indicating this is a reference
-            let mut new_obj = obj.clone();
+            let new_obj = obj.clone();
             // Add reference metadata here
             return Some(Element::Object(new_obj));
         }
