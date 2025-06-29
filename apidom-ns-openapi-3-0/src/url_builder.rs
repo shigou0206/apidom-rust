@@ -22,7 +22,7 @@ impl UrlBuilder {
     /// 
     /// # Example
     /// ```
-    /// use apidom_ns_openapi_3_0::url::UrlBuilder;
+    /// use apidom_ns_openapi_3_0::url_builder::UrlBuilder;
     /// 
     /// let builder = UrlBuilder::new("https://api.example.com/v1");
     /// ```
@@ -58,7 +58,7 @@ impl UrlBuilder {
     /// 
     /// # Example
     /// ```
-    /// use apidom_ns_openapi_3_0::url::UrlBuilder;
+    /// use apidom_ns_openapi_3_0::url_builder::UrlBuilder;
     /// 
     /// let mut builder = UrlBuilder::new("https://api.example.com");
     /// builder.path("/users/{userId}");
@@ -76,7 +76,7 @@ impl UrlBuilder {
     /// 
     /// # Example
     /// ```
-    /// use apidom_ns_openapi_3_0::url::UrlBuilder;
+    /// use apidom_ns_openapi_3_0::url_builder::UrlBuilder;
     /// 
     /// let mut builder = UrlBuilder::new("https://api.example.com");
     /// builder.path("/users/{userId}")
@@ -104,7 +104,7 @@ impl UrlBuilder {
     /// 
     /// # Example
     /// ```
-    /// use apidom_ns_openapi_3_0::url::UrlBuilder;
+    /// use apidom_ns_openapi_3_0::url_builder::UrlBuilder;
     /// 
     /// let mut builder = UrlBuilder::new("https://api.example.com");
     /// builder.path("/users")
@@ -132,7 +132,7 @@ impl UrlBuilder {
     /// 
     /// # Example
     /// ```
-    /// use apidom_ns_openapi_3_0::url::UrlBuilder;
+    /// use apidom_ns_openapi_3_0::url_builder::UrlBuilder;
     /// use std::collections::HashMap;
     /// 
     /// let mut builder = UrlBuilder::new("https://api.example.com/v1");
@@ -284,7 +284,7 @@ impl UrlTemplate {
     /// 
     /// # Example
     /// ```
-    /// use apidom_ns_openapi_3_0::url::UrlTemplate;
+    /// use apidom_ns_openapi_3_0::url_builder::UrlTemplate;
     /// 
     /// let template = UrlTemplate::new("/users/{userId}/posts/{postId}");
     /// let params = template.extract_parameters();

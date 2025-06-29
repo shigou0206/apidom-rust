@@ -3,7 +3,7 @@ use apidom_ast::minim_model::Element;
 use std::collections::HashMap;
 
 /// FoldPass represents a single transformation pass over the document
-pub trait FoldPass {
+pub trait FoldPass: Send + Sync {
     /// Apply the pass to an element
     fn apply(&self, element: &Element) -> Option<Element>;
     

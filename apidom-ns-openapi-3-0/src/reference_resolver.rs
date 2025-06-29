@@ -2,10 +2,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use url::Url;
 use serde_json::Value;
 use apidom_ast::minim_model::*;
-use crate::elements::reference::ReferenceElement;
 
 /// Comprehensive reference resolution system for OpenAPI specifications
 /// Supports:
@@ -15,12 +13,11 @@ use crate::elements::reference::ReferenceElement;
 /// - Inline expansion with circular reference detection
 /// - Caching for performance
 /// - Async resolution for non-blocking operations
-#[derive(Debug, Clone)]
 pub struct ReferenceResolver {
     /// Cache for resolved references
     cache: Arc<RwLock<HashMap<String, ResolvedReference>>>,
     /// Base URI for relative reference resolution
-    base_uri: Option<Url>,
+    base_uri: Option<String>,
     /// Base path for local file resolution
     base_path: Option<PathBuf>,
     /// Maximum depth for circular reference detection
@@ -31,6 +28,19 @@ pub struct ReferenceResolver {
     allow_local: bool,
     /// Custom resolvers for specific schemes
     custom_resolvers: HashMap<String, Box<dyn CustomResolver>>,
+}
+
+impl std::fmt::Debug for ReferenceResolver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReferenceResolver")
+            .field("base_uri", &self.base_uri)
+            .field("base_path", &self.base_path)
+            .field("max_depth", &self.max_depth)
+            .field("allow_remote", &self.allow_remote)
+            .field("allow_local", &self.allow_local)
+            .field("custom_resolvers", &format!("{} resolvers", self.custom_resolvers.len()))
+            .finish()
+    }
 }
 
 /// Resolved reference with metadata
@@ -85,15 +95,15 @@ pub trait CustomResolver: Send + Sync {
     fn can_resolve(&self, reference: &str) -> bool;
 }
 
-/// Resolution context for custom resolvers
-#[derive(Debug)]
+/// Context for reference resolution
+#[derive(Debug, Clone)]
 pub struct ResolutionContext {
     /// Current document being processed
     pub current_document: Option<Element>,
     /// Resolution depth
     pub depth: usize,
     /// Base URI for resolution
-    pub base_uri: Option<Url>,
+    pub base_uri: Option<String>,
     /// Base path for resolution
     pub base_path: Option<PathBuf>,
 }
@@ -140,7 +150,7 @@ impl ReferenceResolver {
     }
 
     /// Set the base URI for relative reference resolution
-    pub fn with_base_uri(mut self, base_uri: Url) -> Self {
+    pub fn with_base_uri(mut self, base_uri: String) -> Self {
         self.base_uri = Some(base_uri);
         self
     }
@@ -228,13 +238,16 @@ impl ReferenceResolver {
             return Ok(ResolutionType::Inline);
         }
 
-        if let Ok(url) = Url::parse(reference) {
-            let scheme = url.scheme();
-            if scheme == "http" || scheme == "https" {
-                return Ok(ResolutionType::Remote);
-            } else if scheme == "file" {
-                return Ok(ResolutionType::Local);
-            } else if self.custom_resolvers.contains_key(scheme) {
+        if reference.starts_with("http://") || reference.starts_with("https://") {
+            return Ok(ResolutionType::Remote);
+        } else if reference.starts_with("file:///") {
+            return Ok(ResolutionType::Local);
+        }
+
+        // Check custom resolvers by scheme
+        if let Some(scheme_end) = reference.find("://") {
+            let scheme = &reference[..scheme_end];
+            if self.custom_resolvers.contains_key(scheme) {
                 return Ok(ResolutionType::Custom(scheme.to_string()));
             }
         }
@@ -253,26 +266,32 @@ impl ReferenceResolver {
             return Err(ResolverError::RemoteDisabled);
         }
 
-        let url = if let Ok(url) = Url::parse(reference) {
-            url
+        let full_url = if reference.starts_with("http://") || reference.starts_with("https://") {
+            reference.to_string()
         } else if let Some(base_uri) = &context.base_uri {
-            base_uri.join(reference).map_err(|e| ResolverError::InvalidReference(e.to_string()))?
+            // Simple URL joining
+            if base_uri.ends_with('/') && reference.starts_with('/') {
+                format!("{}{}", base_uri, &reference[1..])
+            } else if !base_uri.ends_with('/') && !reference.starts_with('/') {
+                format!("{}/{}", base_uri, reference)
+            } else {
+                format!("{}{}", base_uri, reference)
+            }
         } else {
             return Err(ResolverError::InvalidReference(reference.to_string()));
         };
 
         // Split URL and fragment
-        let (base_url, fragment) = if let Some(fragment) = url.fragment() {
-            let mut base_url = url.clone();
-            base_url.set_fragment(None);
-            (base_url, Some(fragment.to_string()))
+        let (base_url, fragment) = if let Some(fragment_pos) = full_url.find('#') {
+            let (url_part, fragment_part) = full_url.split_at(fragment_pos);
+            (url_part.to_string(), Some(fragment_part[1..].to_string()))
         } else {
-            (url, None)
+            (full_url.clone(), None)
         };
 
         // Fetch the document
         let client = reqwest::Client::new();
-        let response = client.get(base_url.as_str())
+        let response = client.get(&base_url)
             .send()
             .await
             .map_err(|e| ResolverError::NetworkError(e.to_string()))?;
@@ -297,7 +316,7 @@ impl ReferenceResolver {
         Ok(ResolvedReference {
             element,
             original_ref: reference.to_string(),
-            resolved_uri: url.to_string(),
+            resolved_uri: full_url,
             metadata: ReferenceMetadata {
                 resolution_type: ResolutionType::Remote,
                 resolved_at: chrono::Utc::now(),
@@ -451,13 +470,23 @@ pub struct CacheStats {
 /// Convert JSON Value to Element
 fn json_to_element(json: &Value) -> Result<Element, ResolverError> {
     match json {
-        Value::Null => Ok(Element::Null(NullElement::new())),
+        Value::Null => Ok(Element::Null(NullElement::default())),
         Value::Bool(b) => Ok(Element::Boolean(BooleanElement::new(*b))),
         Value::Number(n) => {
             if let Some(i) = n.as_i64() {
-                Ok(Element::Number(NumberElement::new(i as f64)))
+                Ok(Element::Number(NumberElement {
+                    element: "number".to_string(),
+                    meta: MetaElement::default(),
+                    attributes: AttributesElement::default(),
+                    content: i as f64,
+                }))
             } else if let Some(f) = n.as_f64() {
-                Ok(Element::Number(NumberElement::new(f)))
+                Ok(Element::Number(NumberElement {
+                    element: "number".to_string(),
+                    meta: MetaElement::default(),
+                    attributes: AttributesElement::default(),
+                    content: f,
+                }))
             } else {
                 Err(ResolverError::JsonError("Invalid number".to_string()))
             }
@@ -492,7 +521,7 @@ fn apply_json_pointer(element: &Element, pointer: &str) -> Result<Element, Resol
 
     let parts: Vec<&str> = pointer.split('/').skip(1).collect(); // Skip empty first part
     let mut current = element;
-    let mut owned_element = None;
+    let _owned_element: Option<Element> = None;
 
     for part in parts {
         let unescaped_part = unescape_json_pointer_token(part);
