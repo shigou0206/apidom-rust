@@ -39,8 +39,8 @@ impl Fold for OpenApiBuilderFolder {
                 }
             }
             "pathItem" => {
-                if let Some(built) = build_path_item(&Element::Object(element.clone())) {
-                    DefaultFolder.fold_object_element(built.object)
+                if let Some(built) = build_and_decorate_path_item(&Element::Object(element.clone()), Some(self)) {
+                    Element::Object(built.object)
                 } else {
                     DefaultFolder.fold_object_element(element)
                 }
