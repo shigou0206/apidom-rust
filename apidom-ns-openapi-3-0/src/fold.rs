@@ -60,8 +60,8 @@ impl Fold for OpenApiBuilderFolder {
                 }
             }
             "requestBody" => {
-                if let Some(built) = build_request_body(&Element::Object(element.clone())) {
-                    DefaultFolder.fold_object_element(built.object)
+                if let Some(built) = build_and_decorate_request_body(&Element::Object(element.clone()), Some(self)) {
+                    Element::Object(built.object)
                 } else {
                     DefaultFolder.fold_object_element(element)
                 }
