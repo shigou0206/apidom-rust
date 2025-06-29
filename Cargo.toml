@@ -4,5 +4,11 @@ members = [
   "apidom-cst",
   "apidom-visit", 
   "apidom-ast", 
-  "apidom-ns-openapi-3-1", "apidom-ns-json-schema-2020-12", "apidom-ns-json-schema-draft-4", "apidom-ns-json-schema-draft-6", "apidom-ns-json-schema-draft-7", "apidom-ns-json-schema-2019-09", "apidom-ns-openapi-3-0",
+  "apidom-ns-openapi-3-1", 
+  "apidom-ns-json-schema-2020-12", 
+  "apidom-ns-json-schema-draft-4", 
+  "apidom-ns-json-schema-draft-6", 
+  "apidom-ns-json-schema-draft-7", 
+  "apidom-ns-json-schema-2019-09", 
+  "apidom-ns-openapi-3-0",
 ]
