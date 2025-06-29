@@ -566,7 +566,30 @@ mod tests {
         obj.set("examples", Element::String(StringElement::new("invalid")));
         // Invalid encoding (not an object)
         obj.set("encoding", Element::Array(ArrayElement::new_empty()));
-        // Both example and examples (mutually exclusive)
+
+        let media_type = build_and_decorate_media_type::<DefaultFolder>(&Element::Object(obj), None);
+        assert!(media_type.is_some());
+        
+        let media_type = media_type.unwrap();
+        
+        // Verify validation errors for invalid field types
+        assert!(media_type.object.meta.properties.contains_key("validationError_examples"));
+        assert!(media_type.object.meta.properties.contains_key("validationError_encoding"));
+    }
+
+    #[test]
+    fn test_media_type_mutual_exclusion_validation() {
+        let mut obj = ObjectElement::new();
+        
+        // Valid examples object
+        let mut examples_obj = ObjectElement::new();
+        let mut simple_example = ObjectElement::new();
+        simple_example.set("summary", Element::String(StringElement::new("Simple example")));
+        simple_example.set("value", Element::String(StringElement::new("simple")));
+        examples_obj.set("simple", Element::Object(simple_example));
+        obj.set("examples", Element::Object(examples_obj));
+        
+        // Also set example (mutually exclusive)
         obj.set("example", Element::String(StringElement::new("test")));
 
         let media_type = build_and_decorate_media_type::<DefaultFolder>(&Element::Object(obj), None);
@@ -574,10 +597,13 @@ mod tests {
         
         let media_type = media_type.unwrap();
         
-        // Verify validation errors
-        assert!(media_type.object.meta.properties.contains_key("validationError_examples"));
-        assert!(media_type.object.meta.properties.contains_key("validationError_encoding"));
+        // Verify mutual exclusion validation error
         assert!(media_type.object.meta.properties.contains_key("validationError_mediaType"));
+        
+        // Verify the error message
+        if let Some(Value::String(error_msg)) = media_type.object.meta.properties.get("validationError_mediaType") {
+            assert!(error_msg.contains("cannot have both 'example' and 'examples'"));
+        }
     }
 
     #[test]
