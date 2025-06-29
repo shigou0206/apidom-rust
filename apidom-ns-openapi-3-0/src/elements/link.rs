@@ -1,6 +1,29 @@
 use apidom_ast::minim_model::*;
 use serde_json::Value;
 
+/// OpenAPI Link Parameters Element
+/// Equivalent to TypeScript LinkParametersElement with MapVisitor pattern
+#[derive(Debug, Clone)]
+pub struct LinkParametersElement {
+    pub object: ObjectElement,
+}
+
+impl LinkParametersElement {
+    pub fn new() -> Self {
+        let mut obj = ObjectElement::new();
+        obj.set_element_type("linkParameters");
+        obj.classes.content.push(Element::String(StringElement::new("link-parameters")));
+        Self { object: obj }
+    }
+
+    pub fn with_content(content: ObjectElement) -> Self {
+        let mut content = content;
+        content.set_element_type("linkParameters");
+        content.classes.content.push(Element::String(StringElement::new("link-parameters")));
+        Self { object: content }
+    }
+}
+
 /// OpenAPI Link Object Element
 #[derive(Debug, Clone)]
 pub struct LinkElement {

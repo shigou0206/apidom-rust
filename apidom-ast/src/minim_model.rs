@@ -295,6 +295,17 @@ impl ArrayElement {
         }
     }
 
+    pub fn set_element_type(&mut self, element_type: &str) {
+        self.element = element_type.to_string();
+    }
+
+    pub fn add_class(&mut self, class_name: &str) {
+        self.meta.properties.insert(
+            "class".to_string(),
+            Value::String(class_name.to_string())
+        );
+    }
+
     pub fn get(&self, index: usize) -> Option<&Element> {
         self.content.get(index)
     }

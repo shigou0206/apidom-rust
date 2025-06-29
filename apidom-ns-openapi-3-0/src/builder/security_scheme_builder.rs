@@ -19,7 +19,7 @@ use apidom_ast::minim_model::*;
 use apidom_ast::fold::Fold;
 use serde_json::Value;
 use crate::elements::security_scheme::SecuritySchemeElement;
-use crate::builder::oauth_flows_builder::{build_oauth_flows, build_and_decorate_oauth_flows};
+use crate::builder::oauth_flows_builder::build_and_decorate_oauth_flows;
 
 /// Build a basic SecuritySchemeElement from a generic Element
 /// 

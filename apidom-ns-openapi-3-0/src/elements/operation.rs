@@ -1,5 +1,180 @@
 use apidom_ast::minim_model::*;
 
+/// OpenAPI Operation Parameters Element
+/// Equivalent to TypeScript OperationParametersElement
+#[derive(Debug, Clone)]
+pub struct OperationParametersElement {
+    pub array: ArrayElement,
+}
+
+impl OperationParametersElement {
+    pub fn new() -> Self {
+        let mut array = ArrayElement::new_empty();
+        array.set_element_type("operationParameters");
+        array.add_class("operation-parameters");
+        Self { array }
+    }
+
+    pub fn with_content(content: ArrayElement) -> Self {
+        let mut content = content;
+        content.set_element_type("operationParameters");
+        content.add_class("operation-parameters");
+        Self { array: content }
+    }
+
+    pub fn push(&mut self, element: Element) {
+        self.array.content.push(element);
+    }
+
+    pub fn len(&self) -> usize {
+        self.array.content.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.array.content.is_empty()
+    }
+}
+
+/// OpenAPI Operation Security Element
+/// Equivalent to TypeScript OperationSecurityElement
+#[derive(Debug, Clone)]
+pub struct OperationSecurityElement {
+    pub array: ArrayElement,
+}
+
+impl OperationSecurityElement {
+    pub fn new() -> Self {
+        let mut array = ArrayElement::new_empty();
+        array.set_element_type("operationSecurity");
+        array.add_class("operation-security");
+        Self { array }
+    }
+
+    pub fn with_content(content: ArrayElement) -> Self {
+        let mut content = content;
+        content.set_element_type("operationSecurity");
+        content.add_class("operation-security");
+        Self { array: content }
+    }
+
+    pub fn push(&mut self, element: Element) {
+        self.array.content.push(element);
+    }
+
+    pub fn len(&self) -> usize {
+        self.array.content.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.array.content.is_empty()
+    }
+}
+
+/// OpenAPI Operation Servers Element
+/// Equivalent to TypeScript OperationServersElement
+#[derive(Debug, Clone)]
+pub struct OperationServersElement {
+    pub array: ArrayElement,
+}
+
+impl OperationServersElement {
+    pub fn new() -> Self {
+        let mut array = ArrayElement::new_empty();
+        array.set_element_type("operationServers");
+        array.add_class("operation-servers");
+        Self { array }
+    }
+
+    pub fn with_content(content: ArrayElement) -> Self {
+        let mut content = content;
+        content.set_element_type("operationServers");
+        content.add_class("operation-servers");
+        Self { array: content }
+    }
+
+    pub fn push(&mut self, element: Element) {
+        self.array.content.push(element);
+    }
+
+    pub fn len(&self) -> usize {
+        self.array.content.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.array.content.is_empty()
+    }
+}
+
+/// OpenAPI Operation Tags Element
+/// Equivalent to TypeScript OperationTagsElement
+#[derive(Debug, Clone)]
+pub struct OperationTagsElement {
+    pub array: ArrayElement,
+}
+
+impl OperationTagsElement {
+    pub fn new() -> Self {
+        let mut array = ArrayElement::new_empty();
+        array.set_element_type("operationTags");
+        array.add_class("operation-tags");
+        Self { array }
+    }
+
+    pub fn with_content(content: ArrayElement) -> Self {
+        let mut content = content;
+        content.set_element_type("operationTags");
+        content.add_class("operation-tags");
+        Self { array: content }
+    }
+
+    pub fn push(&mut self, element: Element) {
+        self.array.content.push(element);
+    }
+
+    pub fn len(&self) -> usize {
+        self.array.content.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.array.content.is_empty()
+    }
+}
+
+/// OpenAPI Operation Callbacks Element
+/// Equivalent to TypeScript OperationCallbacksElement
+#[derive(Debug, Clone)]
+pub struct OperationCallbacksElement {
+    pub object: ObjectElement,
+}
+
+impl OperationCallbacksElement {
+    pub fn new() -> Self {
+        let mut object = ObjectElement::new();
+        object.set_element_type("operationCallbacks");
+        object.add_class("operation-callbacks");
+        Self { object }
+    }
+
+    pub fn with_content(content: ObjectElement) -> Self {
+        let mut content = content;
+        content.set_element_type("operationCallbacks");
+        content.add_class("operation-callbacks");
+        Self { object: content }
+    }
+
+    pub fn set(&mut self, key: &str, value: Element) {
+        self.object.set(key, value);
+    }
+
+    pub fn get(&self, key: &str) -> Option<&Element> {
+        self.object.get(key)
+    }
+
+    pub fn has_key(&self, key: &str) -> bool {
+        self.object.has_key(key)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct OperationElement {
     pub object: ObjectElement,
@@ -50,6 +225,11 @@ impl OperationElement {
         self.object.set("parameters", Element::Array(val));
     }
 
+    /// Set parameters using structured OperationParametersElement
+    pub fn set_operation_parameters(&mut self, val: OperationParametersElement) {
+        self.object.set("parameters", Element::Array(val.array));
+    }
+
     pub fn request_body(&self) -> Option<&Element> {
         self.object.get("requestBody")
     }
@@ -74,6 +254,11 @@ impl OperationElement {
         self.object.set("callbacks", Element::Object(val));
     }
 
+    /// Set callbacks using structured OperationCallbacksElement
+    pub fn set_operation_callbacks(&mut self, val: OperationCallbacksElement) {
+        self.object.set("callbacks", Element::Object(val.object));
+    }
+
     pub fn deprecated(&self) -> bool {
         self.object
             .get("deprecated")
@@ -94,6 +279,11 @@ impl OperationElement {
         self.object.set("security", Element::Array(val));
     }
 
+    /// Set security using structured OperationSecurityElement
+    pub fn set_operation_security(&mut self, val: OperationSecurityElement) {
+        self.object.set("security", Element::Array(val.array));
+    }
+
     pub fn servers(&self) -> Option<&ArrayElement> {
         self.object.get("servers").and_then(Element::as_array)
     }
@@ -102,12 +292,22 @@ impl OperationElement {
         self.object.set("servers", Element::Array(val));
     }
 
+    /// Set servers using structured OperationServersElement
+    pub fn set_operation_servers(&mut self, val: OperationServersElement) {
+        self.object.set("servers", Element::Array(val.array));
+    }
+
     pub fn tags(&self) -> Option<&ArrayElement> {
         self.object.get("tags").and_then(Element::as_array)
     }
 
     pub fn set_tags(&mut self, val: ArrayElement) {
         self.object.set("tags", Element::Array(val));
+    }
+
+    /// Set tags using structured OperationTagsElement
+    pub fn set_operation_tags(&mut self, val: OperationTagsElement) {
+        self.object.set("tags", Element::Array(val.array));
     }
 
     pub fn external_docs(&self) -> Option<&ObjectElement> {
