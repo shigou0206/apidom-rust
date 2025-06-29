@@ -2,6 +2,7 @@ use apidom_ast::minim_model::*;
 use crate::builder::*;
 use apidom_ast::fold::{Fold, DefaultFolder};
 use crate::builder::paths_builder::build_and_decorate_paths;
+use crate::builder::schema_builder::{build_openapi_schema, build_and_decorate_schema};
 
 /// Fold that transforms a generic Element AST into an OpenAPI 3.0 Element AST.
 #[derive(Debug, Default)]
@@ -84,6 +85,15 @@ impl Fold for OpenApiBuilderFolder {
             "mediaType" => {
                 if let Some(built) = build_media_type(&Element::Object(element.clone())) {
                     DefaultFolder.fold_object_element(built.object)
+                } else {
+                    DefaultFolder.fold_object_element(element)
+                }
+            }
+            "schema" => {
+                if let Some(built) = build_and_decorate_schema(&Element::Object(element.clone()), Some(self)) {
+                    Element::Object(built.base.object)
+                } else if let Some(built) = build_openapi_schema(&Element::Object(element.clone())) {
+                    DefaultFolder.fold_object_element(built.base.object)
                 } else {
                     DefaultFolder.fold_object_element(element)
                 }
