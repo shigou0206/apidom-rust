@@ -242,10 +242,21 @@ impl PatternedFieldsProcessor {
 
     /// Detect the pattern type for a field
     fn detect_pattern_type(&self, field_name: &str, field_value: &Element) -> Result<PatternType, PatternError> {
-        // Check each handler to see if it can handle this field
-        for (pattern_type, handler) in &self.handlers {
-            if handler.can_handle(field_name, field_value) {
-                return Ok(pattern_type.clone());
+        // Check handlers in priority order (most specific to least specific)
+        let priority_order = vec![
+            PatternType::PathTemplate,
+            PatternType::RuntimeExpression,
+            PatternType::SpecificationExtension,
+            PatternType::CallbackExpression,
+            PatternType::MediaTypePattern,
+            PatternType::HeaderPattern, // This should be last as it's the most general
+        ];
+        
+        for pattern_type in priority_order {
+            if let Some(handler) = self.handlers.get(&pattern_type) {
+                if handler.can_handle(field_name, field_value) {
+                    return Ok(pattern_type);
+                }
             }
         }
         
