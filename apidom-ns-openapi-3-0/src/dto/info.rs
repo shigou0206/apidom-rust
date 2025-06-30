@@ -7,7 +7,7 @@ use crate::dto::{
     Extensions, IntoDto,
     ObjectElementExt, ExtensionExtractor
 };
-use crate::{extract_string_field};
+use crate::extract_field;
 use crate::elements::info::InfoElement;
 use apidom_ast::minim_model::Element;
 
@@ -139,19 +139,19 @@ impl IntoDto<InfoDto> for InfoElement {
         );
         
         // 提取可选字段
-        extract_string_field!(self.object, dto, description);
-        extract_string_field!(self.object, dto, terms_of_service, "termsOfService");
+        extract_field!(self.object, dto, description: string);
+        extract_field!(self.object, dto, terms_of_service: string, "termsOfService");
         
         // 提取嵌套对象
         if let Some(contact_elem) = self.object.get_element("contact") {
-            dto.contact = extract_contact_dto(contact_elem);
+            dto.contact = Some(element_to_contact_dto(contact_elem));
         }
         
         if let Some(license_elem) = self.object.get_element("license") {
-            dto.license = extract_license_dto(license_elem);
+            dto.license = Some(element_to_license_dto(license_elem));
         }
         
-        // 提取扩展字段 - 使用通用提取器
+        // 提取扩展字段
         dto.extensions = ExtensionExtractor::new()
             .with_known_fields(&["title", "version", "description", "termsOfService", "contact", "license"])
             .extract(&self.object);
@@ -163,19 +163,19 @@ impl IntoDto<InfoDto> for InfoElement {
 impl IntoDto<InfoDto> for &InfoElement {
     fn into_dto(self) -> InfoDto {
         let mut dto = InfoDto::new(
-            self.object.get_string("title").unwrap_or_default(),
-            self.object.get_string("version").unwrap_or_default(),
+            self.title().map(|s| s.content.clone()).unwrap_or_default(),
+            self.version().map(|s| s.content.clone()).unwrap_or_default()
         );
         
-        extract_string_field!(self.object, dto, description);
-        extract_string_field!(self.object, dto, terms_of_service, "termsOfService");
+        extract_field!(self.object, dto, description: string);
+        extract_field!(self.object, dto, terms_of_service: string, "termsOfService");
         
         if let Some(contact_elem) = self.object.get_element("contact") {
-            dto.contact = extract_contact_dto(contact_elem);
+            dto.contact = Some(element_to_contact_dto(contact_elem));
         }
         
         if let Some(license_elem) = self.object.get_element("license") {
-            dto.license = extract_license_dto(license_elem);
+            dto.license = Some(element_to_license_dto(license_elem));
         }
         
         dto.extensions = ExtensionExtractor::new()
@@ -186,43 +186,43 @@ impl IntoDto<InfoDto> for &InfoElement {
     }
 }
 
-/// 提取 Contact DTO
-fn extract_contact_dto(element: &Element) -> Option<ContactDto> {
+/// 辅助函数：将 Element 转换为 ContactDto
+fn element_to_contact_dto(element: &Element) -> ContactDto {
     if let Element::Object(obj) = element {
         let mut contact = ContactDto::new();
         
-        extract_string_field!(obj, contact, name);
-        extract_string_field!(obj, contact, email);
-        extract_string_field!(obj, contact, url);
+        extract_field!(obj, contact, name: string);
+        extract_field!(obj, contact, email: string);
+        extract_field!(obj, contact, url: string);
         
         // 提取扩展字段
         contact.extensions = ExtensionExtractor::new()
             .with_known_fields(&["name", "email", "url"])
             .extract(obj);
         
-        Some(contact)
+        contact
     } else {
-        None
+        ContactDto::new()
     }
 }
 
-/// 提取 License DTO
-fn extract_license_dto(element: &Element) -> Option<LicenseDto> {
+/// 辅助函数：将 Element 转换为 LicenseDto
+fn element_to_license_dto(element: &Element) -> LicenseDto {
     if let Element::Object(obj) = element {
         let mut license = LicenseDto::new(
             obj.get_string("name").unwrap_or_default()
         );
         
-        extract_string_field!(obj, license, url);
+        extract_field!(obj, license, url: string);
         
         // 提取扩展字段
         license.extensions = ExtensionExtractor::new()
             .with_known_fields(&["name", "url"])
             .extract(obj);
         
-        Some(license)
+        license
     } else {
-        None
+        LicenseDto::new("")
     }
 }
 

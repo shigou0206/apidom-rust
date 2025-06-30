@@ -10,7 +10,7 @@ use crate::dto::{
     Extensions, IntoDto,
     ObjectElementExt, ExtensionExtractor, extract_reference
 };
-use crate::{extract_string_field, extract_json_field};
+use crate::extract_field;
 use crate::elements::example::ExampleElement;
 
 /// Example DTO - 纯数据传输对象
@@ -86,19 +86,19 @@ impl IntoDto<ExampleDto> for ExampleElement {
         let mut dto = ExampleDto::new();
         
         // 提取基本字段
-        extract_string_field!(self.object, dto, summary);
-        extract_string_field!(self.object, dto, description);
-        extract_string_field!(self.object, dto, external_value, "externalValue");
+        extract_field!(self.object, dto, summary: string);
+        extract_field!(self.object, dto, description: string);
+        extract_field!(self.object, dto, external_value: string, "externalValue");
         
         // 处理 value 字段 - 转换为 JSON 字符串
-        extract_json_field!(self.object, dto, value);
+        extract_field!(self.object, dto, value: json);
         
         // 提取引用信息 - 使用通用函数
         dto.reference = extract_reference(&self.object);
         
-        // 提取扩展字段 - 使用通用提取器
+        // 提取扩展字段
         dto.extensions = ExtensionExtractor::new()
-            .with_known_fields(&["summary", "description", "externalValue", "value", "$ref"])
+            .with_known_fields(&["summary", "description", "value", "externalValue", "$ref"])
             .extract(&self.object);
         
         dto
@@ -111,19 +111,19 @@ impl IntoDto<ExampleDto> for &ExampleElement {
         let mut dto = ExampleDto::new();
         
         // 提取基本字段
-        extract_string_field!(self.object, dto, summary);
-        extract_string_field!(self.object, dto, description);
-        extract_string_field!(self.object, dto, external_value, "externalValue");
+        extract_field!(self.object, dto, summary: string);
+        extract_field!(self.object, dto, description: string);
+        extract_field!(self.object, dto, external_value: string, "externalValue");
         
         // 处理 value 字段 - 转换为 JSON 字符串
-        extract_json_field!(self.object, dto, value);
+        extract_field!(self.object, dto, value: json);
         
         // 提取引用信息 - 使用通用函数
         dto.reference = extract_reference(&self.object);
         
-        // 提取扩展字段 - 使用通用提取器
+        // 提取扩展字段
         dto.extensions = ExtensionExtractor::new()
-            .with_known_fields(&["summary", "description", "externalValue", "value", "$ref"])
+            .with_known_fields(&["summary", "description", "value", "externalValue", "$ref"])
             .extract(&self.object);
         
         dto

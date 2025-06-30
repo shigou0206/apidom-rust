@@ -85,17 +85,10 @@ pub struct ErrorDto {
 pub use conversion::{
     ObjectElementExt, 
     ExtensionExtractor, 
-    element_to_json_value, 
-    element_to_json_string,
     extract_string_array,
     extract_string_map,
     extract_reference,
 };
 
-// 重新导出宏
-pub use crate::{
-    extract_string_field,
-    extract_number_field, 
-    extract_bool_field,
-    extract_json_field,
-}; 
+// 重新导出可用的宏 
+pub use crate::extract_field; 
