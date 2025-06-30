@@ -1,7 +1,8 @@
 use serde_json::Value;
 use std::collections::HashMap;
+use serde::Serialize;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Element {
     Null(NullElement),
     Boolean(BooleanElement),
@@ -89,7 +90,7 @@ impl ElementRegistry {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ObjectElement {
     pub element: String,
     pub meta: MetaElement,
@@ -189,7 +190,7 @@ impl StringElement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MemberElement {
     pub key: Box<Element>,
     pub value: Box<Element>,
@@ -204,17 +205,33 @@ impl MemberElement {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MetaElement {
     pub properties: HashMap<String, Value>,
 }
 
-#[derive(Debug, Clone, Default)]
+impl Default for MetaElement {
+    fn default() -> Self {
+        MetaElement {
+            properties: HashMap::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct AttributesElement {
     pub properties: HashMap<String, Value>,
 }
 
-#[derive(Debug, Clone)]
+impl Default for AttributesElement {
+    fn default() -> Self {
+        AttributesElement {
+            properties: HashMap::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct StringElement {
     pub element: String,
     pub meta: MetaElement,
@@ -222,7 +239,7 @@ pub struct StringElement {
     pub content: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct BooleanElement {
     pub element: String,
     pub meta: MetaElement,
@@ -241,7 +258,7 @@ impl BooleanElement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NumberElement {
     pub element: String,
     pub meta: MetaElement,
@@ -249,7 +266,7 @@ pub struct NumberElement {
     pub content: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NullElement {
     pub element: String,
     pub meta: MetaElement,
@@ -266,7 +283,7 @@ impl Default for NullElement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ArrayElement {
     pub element: String,
     pub meta: MetaElement,
@@ -328,7 +345,7 @@ impl ArrayElement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RefElement {
     pub element: String,
     pub meta: MetaElement,
@@ -336,7 +353,7 @@ pub struct RefElement {
     pub path: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct LinkElement {
     pub element: String,
     pub meta: MetaElement,
@@ -345,7 +362,7 @@ pub struct LinkElement {
     pub href: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CustomElement {
     pub element: String,
     pub meta: MetaElement,

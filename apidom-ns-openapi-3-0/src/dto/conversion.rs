@@ -21,6 +21,86 @@ pub fn clear_json_cache() {
     JSON_CACHE.with(|cache| cache.borrow_mut().clear());
 }
 
+/// 统一的 Element → JSON 值转换函数（带缓存）
+pub fn element_to_json_value_cached(element: &Element) -> Value {
+    use std::hash::{Hash, Hasher};
+    use std::collections::hash_map::DefaultHasher;
+    
+    // 计算元素的哈希值作为缓存键
+    let mut hasher = DefaultHasher::new();
+    match element {
+        Element::String(s) => s.content.hash(&mut hasher),
+        Element::Number(n) => n.content.to_string().hash(&mut hasher),
+        Element::Boolean(b) => b.content.hash(&mut hasher),
+        Element::Null(_) => "null".hash(&mut hasher),
+        Element::Array(arr) => {
+            for elem in &arr.content {
+                format!("{:?}", elem).hash(&mut hasher);
+            }
+        }
+        Element::Object(obj) => {
+            for member in &obj.content {
+                format!("{:?}", member.key).hash(&mut hasher);
+                format!("{:?}", member.value).hash(&mut hasher);
+            }
+        }
+        _ => format!("{:?}", element).hash(&mut hasher),
+    }
+    let cache_key = hasher.finish().to_string();
+    
+    // 尝试从缓存获取
+    JSON_CACHE.with(|cache| {
+        if let Some(cached_value) = cache.borrow().get(&cache_key) {
+            return cached_value.clone();
+        }
+        
+        // 缓存未命中，执行转换
+        let value = match element {
+            Element::String(s) => Value::String(s.content.clone()),
+            Element::Number(n) => {
+                if n.content.fract() == 0.0 {
+                    Value::Number(serde_json::Number::from(n.content as i64))
+                } else {
+                    Value::Number(serde_json::Number::from_f64(n.content).unwrap_or(serde_json::Number::from(0)))
+                }
+            }
+            Element::Boolean(b) => Value::Bool(b.content),
+            Element::Null(_) => Value::Null,
+            Element::Array(arr) => {
+                Value::Array(arr.content.iter().map(element_to_json_value_cached).collect())
+            }
+            Element::Object(obj) => {
+                let mut map = serde_json::Map::new();
+                for member in &obj.content {
+                    if let Element::String(key) = &*member.key {
+                        map.insert(
+                            key.content.clone(),
+                            element_to_json_value_cached(&member.value)
+                        );
+                    }
+                }
+                Value::Object(map)
+            }
+            _ => Value::Null,
+        };
+        
+        // 存入缓存
+        cache.borrow_mut().insert(cache_key, value.clone());
+        value
+    })
+}
+
+// ==================== 自动 Setter Trait ====================
+
+/// 为 DTO 提供自动的 setter 方法
+pub trait DtoSetter {
+    /// 设置字段值
+    fn set_field(&mut self, field_name: &str, value: &Element) -> bool;
+    
+    /// 获取字段规范
+    fn field_specs() -> Vec<FieldSpec> where Self: Sized;
+}
+
 // ==================== 通用字段访问 Trait ====================
 
 /// ObjectElement 扩展 trait，提供类型安全的字段访问
@@ -80,86 +160,230 @@ impl ObjectElementExt for ObjectElement {
     }
 }
 
+// ==================== 字段规范系统 ====================
+
+/// 为 DTO 字段生成 FieldSpec 的派生宏
+pub trait DeriveFieldSpec {
+    fn field_specs() -> Vec<FieldSpec>;
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldSpec {
+    name: String,
+    json_key: String,  // 新增: JSON key alias
+    field_type: FieldType,
+    is_required: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FieldType {
+    String,
+    Number,
+    NumberAs(NumberType),  // 新增: 支持数值类型转换
+    Boolean,
+    Json,
+    Reference,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NumberType {
+    USize,
+    I32,
+    U32,
+    I64,
+    U64,
+    F32,
+    F64,
+}
+
+impl FieldSpec {
+    pub fn new(name: impl Into<String>, field_type: FieldType) -> Self {
+        let name_str = name.into();
+        Self {
+            json_key: name_str.clone(),  // 默认使用相同的 key
+            name: name_str,
+            field_type,
+            is_required: false,
+        }
+    }
+
+    pub fn with_json_key(mut self, json_key: impl Into<String>) -> Self {
+        self.json_key = json_key.into();
+        self
+    }
+
+    pub fn required(mut self) -> Self {
+        self.is_required = true;
+        self
+    }
+    
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    
+    pub fn json_key(&self) -> &str {
+        &self.json_key
+    }
+    
+    pub fn field_type(&self) -> &FieldType {
+        &self.field_type
+    }
+    
+    pub fn is_required(&self) -> bool {
+        self.is_required
+    }
+}
+
+// 为 FieldType 添加便捷构造函数
+impl FieldType {
+    pub fn number_as(number_type: NumberType) -> Self {
+        Self::NumberAs(number_type)
+    }
+    
+    pub fn usize() -> Self {
+        Self::NumberAs(NumberType::USize)
+    }
+    
+    pub fn i32() -> Self {
+        Self::NumberAs(NumberType::I32)
+    }
+    
+    pub fn u32() -> Self {
+        Self::NumberAs(NumberType::U32)
+    }
+    
+    pub fn i64() -> Self {
+        Self::NumberAs(NumberType::I64)
+    }
+    
+    pub fn u64() -> Self {
+        Self::NumberAs(NumberType::U64)
+    }
+    
+    pub fn f32() -> Self {
+        Self::NumberAs(NumberType::F32)
+    }
+    
+    pub fn f64() -> Self {
+        Self::NumberAs(NumberType::F64)
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct FieldSpecs {
+    fields: Vec<FieldSpec>,
+}
+
+impl FieldSpecs {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn add(mut self, spec: FieldSpec) -> Self {
+        self.fields.push(spec);
+        self
+    }
+
+    pub fn known_field_names(&self) -> Vec<&str> {
+        self.fields.iter().map(|f| f.name.as_str()).collect()
+    }
+}
+
 // ==================== 统一字段提取宏 ====================
 
-/// 统一的字段提取宏，支持所有类型的字段提取
-/// 
-/// 用法示例：
+/// Extract fields from an object element into a DTO.
+/// Supports the following types:
+/// - string: String fields
+/// - number: Number fields
+/// - usize: Number fields converted to usize
+/// - bool: Boolean fields
+/// - json: JSON fields
+/// - reference: Reference fields
+///
+/// # Examples
+///
 /// ```rust
-/// extract_field!(obj, dto, name: string);
-/// extract_field!(obj, dto, count: number);
-/// extract_field!(obj, dto, enabled: bool);
-/// extract_field!(obj, dto, data: json);
-/// extract_field!(obj, dto, min_length: number as usize, "minLength");
-/// extract_field!(obj, dto, terms_of_service: string, "termsOfService");
+/// use apidom_ns_openapi_3_0::extract_field;
+/// use apidom_ast::minim_model::ObjectElement;
+/// use apidom_ns_openapi_3_0::dto::ObjectElementExt;
+/// # struct SchemaDto { min_length: Option<usize>, pattern: Option<String> }
+/// # impl Default for SchemaDto { fn default() -> Self { Self { min_length: None, pattern: None } } }
+/// # let obj = ObjectElement::new();
+/// # let mut dto = SchemaDto::default();
+/// extract_field!(obj => dto.min_length: usize, "minLength");
+/// extract_field!(obj => dto.pattern: string);
 /// ```
 #[macro_export]
 macro_rules! extract_field {
+    // 数值字段 - 类型转换 (使用 usize)
+    ($obj:expr => $dto:ident.$field:ident: usize, $key:expr) => {
+        if let Some(val) = $obj.get_number($key) {
+            $dto.$field = Some(val as usize);
+        }
+    };
+    
     // 字符串字段 - 使用字段名作为键
-    ($obj:expr, $dto:expr, $field:ident: string) => {
+    ($obj:expr => $dto:ident.$field:ident: string) => {
         if let Some(val) = $obj.get_string(stringify!($field)) {
             $dto.$field = Some(val);
         }
     };
     
     // 字符串字段 - 使用自定义键
-    ($obj:expr, $dto:expr, $field:ident: string, $key:expr) => {
+    ($obj:expr => $dto:ident.$field:ident: string, $key:expr) => {
         if let Some(val) = $obj.get_string($key) {
             $dto.$field = Some(val);
         }
     };
     
     // 数值字段 - 使用字段名作为键
-    ($obj:expr, $dto:expr, $field:ident: number) => {
+    ($obj:expr => $dto:ident.$field:ident: number) => {
         if let Some(val) = $obj.get_number(stringify!($field)) {
             $dto.$field = Some(val);
         }
     };
     
     // 数值字段 - 使用自定义键
-    ($obj:expr, $dto:expr, $field:ident: number, $key:expr) => {
+    ($obj:expr => $dto:ident.$field:ident: number, $key:expr) => {
         if let Some(val) = $obj.get_number($key) {
             $dto.$field = Some(val);
         }
     };
     
-    // 数值字段 - 类型转换
-    ($obj:expr, $dto:expr, $field:ident: number as $cast_type:ty, $key:expr) => {
-        if let Some(val) = $obj.get_number($key) {
-            $dto.$field = Some(val as $cast_type);
-        }
-    };
-    
     // 布尔字段 - 使用字段名作为键
-    ($obj:expr, $dto:expr, $field:ident: bool) => {
+    ($obj:expr => $dto:ident.$field:ident: bool) => {
         if let Some(val) = $obj.get_bool(stringify!($field)) {
             $dto.$field = Some(val);
         }
     };
     
     // 布尔字段 - 使用自定义键
-    ($obj:expr, $dto:expr, $field:ident: bool, $key:expr) => {
+    ($obj:expr => $dto:ident.$field:ident: bool, $key:expr) => {
         if let Some(val) = $obj.get_bool($key) {
             $dto.$field = Some(val);
         }
     };
     
     // JSON 字段 - 使用字段名作为键
-    ($obj:expr, $dto:expr, $field:ident: json) => {
-        if let Some(_element) = $obj.get_element(stringify!($field)) {
-            $dto.$field = Some($crate::dto::json_value_to_extension_string(&serde_json::to_value("placeholder").unwrap_or_default()));
+    ($obj:expr => $dto:ident.$field:ident: json) => {
+        if let Some(element) = $obj.get_element(stringify!($field)) {
+            $dto.$field = Some($crate::dto::json_value_to_extension_string(
+                &$crate::dto::conversion::element_to_json_value_cached(element)
+            ));
         }
     };
     
     // JSON 字段 - 使用自定义键
-    ($obj:expr, $dto:expr, $field:ident: json, $key:expr) => {
+    ($obj:expr => $dto:ident.$field:ident: json, $key:expr) => {
         if let Some(element) = $obj.get_element($key) {
-            $dto.$field = Some($crate::dto::json_value_to_extension_string(&serde_json::to_value("placeholder").unwrap_or_default()));
+            $dto.$field = Some($crate::dto::json_value_to_extension_string(
+                &$crate::dto::conversion::element_to_json_value_cached(element)
+            ));
         }
     };
     
     // 引用字段
-    ($obj:expr, $dto:expr, $field:ident: reference) => {
+    ($obj:expr => $dto:ident.$field:ident: reference) => {
         $dto.$field = $crate::dto::conversion::extract_reference($obj);
     };
 }
@@ -169,7 +393,7 @@ macro_rules! extract_field {
 /// 字段注册器，用于集中管理和自动生成已知字段列表
 #[derive(Debug, Clone)]
 pub struct FieldRegistry {
-    fields: Vec<String>,
+    fields: Vec<FieldSpec>,
 }
 
 impl FieldRegistry {
@@ -180,32 +404,32 @@ impl FieldRegistry {
     }
     
     /// 注册字段
-    pub fn register(mut self, field: &str) -> Self {
-        self.fields.push(field.to_string());
+    pub fn register(mut self, field: FieldSpec) -> Self {
+        self.fields.push(field);
         self
     }
     
     /// 批量注册字段
-    pub fn register_all(mut self, fields: &[&str]) -> Self {
-        self.fields.extend(fields.iter().map(|s| s.to_string()));
+    pub fn register_all(mut self, fields: &[FieldSpec]) -> Self {
+        self.fields.extend_from_slice(fields);
         self
     }
     
     /// 获取已注册的字段列表
-    pub fn fields(&self) -> &[String] {
+    pub fn fields(&self) -> &[FieldSpec] {
         &self.fields
     }
     
     /// 转换为字符串切片（用于 ExtensionExtractor）
     pub fn as_str_slice(&self) -> Vec<&str> {
-        self.fields.iter().map(|s| s.as_str()).collect()
+        self.fields.iter().map(|f| f.name.as_str()).collect()
     }
 }
 
 /// 字段注册宏，提供编译时字段列表生成
 #[macro_export]
 macro_rules! register_fields {
-    ($($field:literal),* $(,)?) => {
+    ($($field:expr),* $(,)?) => {
         $crate::dto::conversion::FieldRegistry::new()
             $(.register($field))*
     };
@@ -220,6 +444,9 @@ pub trait DtoFieldVisitor {
     
     /// 访问数值字段
     fn visit_number_field(&mut self, key: &str, field_name: &str, value: Option<f64>);
+    
+    /// 访问数值字段（带类型转换）
+    fn visit_number_as_field(&mut self, key: &str, field_name: &str, value: Option<f64>, number_type: NumberType);
     
     /// 访问布尔字段
     fn visit_bool_field(&mut self, key: &str, field_name: &str, value: Option<bool>);
@@ -257,11 +484,39 @@ impl<T> DtoBuilder<T> {
         self.dto
     }
     
-    pub fn extract_from_object<V: DtoFieldVisitor>(self, obj: &ObjectElement, mut visitor: V) -> T {
+    /// 自动从对象中提取字段并填充 DTO
+    pub fn auto<V: DtoFieldVisitor>(self, obj: &ObjectElement, mut visitor: V) -> T {
         // 提取基础字段
         for field in self.field_registry.fields() {
-            if let Some(string_val) = obj.get_string(field) {
-                visitor.visit_string_field(field, field, Some(string_val));
+            match &field.field_type {
+                FieldType::String => {
+                    if let Some(string_val) = obj.get_string(&field.name) {
+                        visitor.visit_string_field(&field.name, &field.name, Some(string_val));
+                    }
+                }
+                FieldType::Number => {
+                    if let Some(number_val) = obj.get_number(&field.name) {
+                        visitor.visit_number_field(&field.name, &field.name, Some(number_val));
+                    }
+                }
+                FieldType::NumberAs(number_type) => {
+                    if let Some(number_val) = obj.get_number(&field.name) {
+                        visitor.visit_number_as_field(&field.name, &field.name, Some(number_val), number_type.clone());
+                    }
+                }
+                FieldType::Boolean => {
+                    if let Some(bool_val) = obj.get_bool(&field.name) {
+                        visitor.visit_bool_field(&field.name, &field.name, Some(bool_val));
+                    }
+                }
+                FieldType::Json => {
+                    if let Some(element) = obj.get_element(&field.name) {
+                        visitor.visit_json_field(&field.name, &field.name, Some(element));
+                    }
+                }
+                FieldType::Reference => {
+                    visitor.visit_reference_field(obj.get_string(&field.name));
+                }
             }
         }
         
@@ -277,18 +532,13 @@ impl<T> DtoBuilder<T> {
 
 // ==================== 扩展字段提取 ====================
 
-/// 通用扩展字段提取器
-/// 
-/// 这个结构体可以配置哪些字段应该被忽略，哪些应该被包含为扩展字段
+/// 扩展字段提取器
 pub struct ExtensionExtractor {
-    /// 已知字段列表，这些字段不会被当作扩展字段
     known_fields: Vec<String>,
-    /// 是否包含非 x- 开头的未知字段
     include_unknown_fields: bool,
 }
 
 impl ExtensionExtractor {
-    /// 创建新的扩展字段提取器
     pub fn new() -> Self {
         Self {
             known_fields: Vec::new(),
@@ -296,19 +546,16 @@ impl ExtensionExtractor {
         }
     }
     
-    /// 添加已知字段
     pub fn with_known_fields(mut self, fields: &[&str]) -> Self {
         self.known_fields = fields.iter().map(|s| s.to_string()).collect();
         self
     }
     
-    /// 从字段注册器添加已知字段
     pub fn with_field_registry(mut self, registry: &FieldRegistry) -> Self {
-        self.known_fields.extend(registry.fields().iter().cloned());
+        self.known_fields = registry.as_str_slice().into_iter().map(String::from).collect();
         self
     }
     
-    /// 设置是否包含未知字段
     pub fn include_unknown_fields(mut self, include: bool) -> Self {
         self.include_unknown_fields = include;
         self
@@ -334,13 +581,18 @@ impl ExtensionExtractor {
                 };
                 
                 if should_include {
-                    let value_str = json_value_to_extension_string(&serde_json::Value::String("placeholder".to_string()));
+                    let value_str = json_value_to_extension_string(&member.value.to_value());
                     extensions.insert(key_str.clone(), value_str);
                 }
             }
         }
         
         extensions
+    }
+
+    pub fn with_field_specs(mut self, specs: &FieldSpecs) -> Self {
+        self.known_fields = specs.known_field_names().into_iter().map(String::from).collect();
+        self
     }
 }
 
@@ -430,6 +682,133 @@ fn extract_extensions(obj: &ObjectElement) -> Extensions {
 mod tests {
     use super::*;
     
+    // 测试用的示例 DTO
+    #[derive(Debug, Default)]
+    struct TestDto {
+        title: Option<String>,
+        count: Option<f64>,
+        size: Option<usize>,
+        enabled: Option<bool>,
+        data: Option<String>,
+    }
+    
+    // 实现 DtoSetter trait
+    impl DtoSetter for TestDto {
+        fn set_field(&mut self, field_name: &str, value: &Element) -> bool {
+            match field_name {
+                "title" => {
+                    if let Element::String(s) = value {
+                        self.title = Some(s.content.clone());
+                        true
+                    } else {
+                        false
+                    }
+                }
+                "count" => {
+                    if let Element::Number(n) = value {
+                        self.count = Some(n.content);
+                        true
+                    } else {
+                        false
+                    }
+                }
+                "size" => {
+                    if let Element::Number(n) = value {
+                        self.size = Some(n.content as usize);
+                        true
+                    } else {
+                        false
+                    }
+                }
+                "enabled" => {
+                    if let Element::Boolean(b) = value {
+                        self.enabled = Some(b.content);
+                        true
+                    } else {
+                        false
+                    }
+                }
+                "data" => {
+                    self.data = Some(json_value_to_extension_string(&element_to_json_value_cached(value)));
+                    true
+                }
+                _ => false,
+            }
+        }
+        
+        fn field_specs() -> Vec<FieldSpec> {
+            vec![
+                FieldSpec::new("title", FieldType::String),
+                FieldSpec::new("count", FieldType::Number),
+                FieldSpec::new("size", FieldType::usize()),
+                FieldSpec::new("enabled", FieldType::Boolean),
+                FieldSpec::new("data", FieldType::Json),
+            ]
+        }
+    }
+    
+    #[test]
+    fn test_field_spec_with_json_key() {
+        let spec = FieldSpec::new("minLength", FieldType::usize())
+            .with_json_key("min_length");
+        
+        assert_eq!(spec.name(), "minLength");
+        assert_eq!(spec.json_key(), "min_length");
+        assert!(matches!(spec.field_type(), FieldType::NumberAs(NumberType::USize)));
+    }
+    
+    #[test]
+    fn test_dto_setter() {
+        let mut dto = TestDto::default();
+        
+        // 测试设置字符串字段
+        let title = Element::String(StringElement::new("Test Title"));
+        assert!(dto.set_field("title", &title));
+        assert_eq!(dto.title, Some("Test Title".to_string()));
+        
+        // 测试设置数值字段
+        let count = Element::Number(NumberElement {
+            element: "number".to_string(),
+            meta: Default::default(),
+            attributes: Default::default(),
+            content: 42.0,
+        });
+        assert!(dto.set_field("count", &count));
+        assert_eq!(dto.count, Some(42.0));
+        
+        // 测试设置 usize 字段
+        let size = Element::Number(NumberElement {
+            element: "number".to_string(),
+            meta: Default::default(),
+            attributes: Default::default(),
+            content: 100.0,
+        });
+        assert!(dto.set_field("size", &size));
+        assert_eq!(dto.size, Some(100));
+    }
+    
+    #[test]
+    fn test_element_to_json_value_cached() {
+        // 测试字符串元素
+        let str_elem = Element::String(StringElement::new("test"));
+        let json_str = element_to_json_value_cached(&str_elem);
+        assert_eq!(json_str, Value::String("test".to_string()));
+        
+        // 测试数值元素
+        let num_elem = Element::Number(NumberElement {
+            element: "number".to_string(),
+            meta: Default::default(),
+            attributes: Default::default(),
+            content: 42.0,
+        });
+        let json_num = element_to_json_value_cached(&num_elem);
+        assert_eq!(json_num, Value::Number(serde_json::Number::from(42)));
+        
+        // 测试缓存命中
+        let cached_value = element_to_json_value_cached(&str_elem);
+        assert_eq!(cached_value, Value::String("test".to_string()));
+    }
+    
     #[test]
     fn test_unified_extract_field_macro() {
         let mut obj = ObjectElement::new();
@@ -443,19 +822,12 @@ mod tests {
         obj.set("enabled", Element::Boolean(BooleanElement::new(true)));
         
         // 创建一个测试 DTO 结构
-        #[derive(Debug, Default)]
-        struct TestDto {
-            title: Option<String>,
-            count: Option<f64>,
-            enabled: Option<bool>,
-        }
-        
         let mut dto = TestDto::default();
         
         // 使用新的统一宏
-        extract_field!(obj, dto, title: string);
-        extract_field!(obj, dto, count: number);
-        extract_field!(obj, dto, enabled: bool);
+        extract_field!(obj => dto.title: string);
+        extract_field!(obj => dto.count: number);
+        extract_field!(obj => dto.enabled: bool);
         
         assert_eq!(dto.title, Some("Test".to_string()));
         assert_eq!(dto.count, Some(42.0));
@@ -464,48 +836,54 @@ mod tests {
     
     #[test]
     fn test_field_registry() {
-        let registry = register_fields![
-            "title", "description", "version"
-        ];
+        let registry = FieldRegistry::new()
+            .register(FieldSpec::new("title", FieldType::String))
+            .register(FieldSpec::new("description", FieldType::String))
+            .register(FieldSpec::new("version", FieldType::String));
         
         assert_eq!(registry.fields().len(), 3);
-        assert!(registry.fields().contains(&"title".to_string()));
-        assert!(registry.fields().contains(&"description".to_string()));
-        assert!(registry.fields().contains(&"version".to_string()));
+        assert!(registry.fields().contains(&FieldSpec::new("title", FieldType::String)));
+        assert!(registry.fields().contains(&FieldSpec::new("description", FieldType::String)));
+        assert!(registry.fields().contains(&FieldSpec::new("version", FieldType::String)));
     }
-    
-    // #[test]
-    // fn test_json_caching() {
-    //     let str_elem = Element::String(StringElement::new("test"));
-        
-    //     // 第一次调用
-    //     let value1 = element_to_json_value_cached(&str_elem);
-        
-    //     // 第二次调用（应该从缓存中获取）
-    //     let value2 = element_to_json_value_cached(&str_elem);
-        
-    //     assert_eq!(value1, value2);
-    //     assert_eq!(value1, Value::String("test".to_string()));
-        
-    //     // 清理缓存
-    //     clear_json_cache();
-    // }
     
     #[test]
     fn test_extension_extractor_with_registry() {
+        let registry = FieldRegistry::new()
+            .register(FieldSpec::new("custom", FieldType::String));
+        let extractor = ExtensionExtractor::new()
+            .with_field_registry(&registry);
+
+        let mut obj = ObjectElement::new();
+        obj.set("x-custom-extension", Element::String(StringElement::new("custom")));
+
+        let extracted_extensions = extractor.extract(&obj);
+
+        assert_eq!(extracted_extensions.get("x-custom-extension"), Some(&"custom".to_string()));
+    }
+    
+    #[test]
+    fn test_field_specs() {
+        let specs = FieldSpecs::new()
+            .add(FieldSpec::new("title", FieldType::String))
+            .add(FieldSpec::new("count", FieldType::Number).required())
+            .add(FieldSpec::new("data", FieldType::Json));
+            
+        let known_fields = specs.known_field_names();
+        assert_eq!(known_fields.len(), 3);
+        assert!(known_fields.contains(&"title"));
+        assert!(known_fields.contains(&"count"));
+        assert!(known_fields.contains(&"data"));
+        
         let mut obj = ObjectElement::new();
         obj.set("title", Element::String(StringElement::new("Test")));
         obj.set("x-custom", Element::String(StringElement::new("custom")));
-        obj.set("unknown", Element::String(StringElement::new("unknown")));
-        
-        let registry = register_fields!["title"];
         
         let extractor = ExtensionExtractor::new()
-            .with_field_registry(&registry);
+            .with_field_specs(&specs);
         let extensions = extractor.extract(&obj);
         
-        assert_eq!(extensions.get("x-custom"), Some(&"custom".to_string()));
+        assert!(extensions.contains_key("x-custom"));
         assert!(!extensions.contains_key("title"));
-        assert!(!extensions.contains_key("unknown"));
     }
 } 

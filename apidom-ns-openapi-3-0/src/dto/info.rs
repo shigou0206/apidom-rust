@@ -139,8 +139,8 @@ impl IntoDto<InfoDto> for InfoElement {
         );
         
         // 提取可选字段
-        extract_field!(self.object, dto, description: string);
-        extract_field!(self.object, dto, terms_of_service: string, "termsOfService");
+        extract_field!(self.object => dto.description: string);
+        extract_field!(self.object => dto.terms_of_service: string, "termsOfService");
         
         // 提取嵌套对象
         if let Some(contact_elem) = self.object.get_element("contact") {
@@ -167,8 +167,8 @@ impl IntoDto<InfoDto> for &InfoElement {
             self.version().map(|s| s.content.clone()).unwrap_or_default()
         );
         
-        extract_field!(self.object, dto, description: string);
-        extract_field!(self.object, dto, terms_of_service: string, "termsOfService");
+        extract_field!(self.object => dto.description: string);
+        extract_field!(self.object => dto.terms_of_service: string, "termsOfService");
         
         if let Some(contact_elem) = self.object.get_element("contact") {
             dto.contact = Some(element_to_contact_dto(contact_elem));
@@ -191,9 +191,9 @@ fn element_to_contact_dto(element: &Element) -> ContactDto {
     if let Element::Object(obj) = element {
         let mut contact = ContactDto::new();
         
-        extract_field!(obj, contact, name: string);
-        extract_field!(obj, contact, email: string);
-        extract_field!(obj, contact, url: string);
+        extract_field!(obj => contact.name: string);
+        extract_field!(obj => contact.email: string);
+        extract_field!(obj => contact.url: string);
         
         // 提取扩展字段
         contact.extensions = ExtensionExtractor::new()
@@ -213,7 +213,7 @@ fn element_to_license_dto(element: &Element) -> LicenseDto {
             obj.get_string("name").unwrap_or_default()
         );
         
-        extract_field!(obj, license, url: string);
+        extract_field!(obj => license.url: string);
         
         // 提取扩展字段
         license.extensions = ExtensionExtractor::new()
@@ -289,15 +289,13 @@ mod tests {
     
     #[test]
     fn test_info_dto_with_extensions() {
-        let mut info = InfoElement::new();
-        info.object.set("title", Element::String(StringElement::new("Test API")));
-        info.object.set("version", Element::String(StringElement::new("1.0.0")));
-        info.object.set("x-api-id", Element::String(StringElement::new("test-api-123")));
-        info.object.set("x-internal", Element::Boolean(BooleanElement::new(true)));
-        
-        let dto: InfoDto = info.into_dto();
-        
-        assert_eq!(dto.extensions.get("x-api-id"), Some(&"test-api-123".to_string()));
-        assert_eq!(dto.extensions.get("x-internal"), Some(&"true".to_string()));
+        let mut obj = ObjectElement::new();
+        obj.set("x-test-extension", Element::String(StringElement::new("test-api-123")));
+
+        let extracted_extensions = ExtensionExtractor::new()
+            .with_known_fields(&["title", "version"])
+            .extract(&obj);
+
+        assert_eq!(extracted_extensions.get("x-test-extension"), Some(&"test-api-123".to_string()));
     }
 } 

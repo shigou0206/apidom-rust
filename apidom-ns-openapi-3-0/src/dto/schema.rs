@@ -7,7 +7,7 @@ use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use crate::dto::{
     Extensions, IntoDto, json_value_to_extension_string,
-    ObjectElementExt, ExtensionExtractor, extract_string_array
+    ObjectElementExt, ExtensionExtractor, extract_string_array,
 };
 use crate::extract_field;
 use crate::elements::schema::OpenApiSchemaElement;
@@ -261,38 +261,38 @@ fn extract_basic_fields(obj: &ObjectElement, dto: &mut SchemaDto) {
         dto.schema_type = parse_schema_type(&type_str);
     }
     
-    extract_field!(obj, dto, title: string);
-    extract_field!(obj, dto, description: string);
+    extract_field!(obj => dto.title: string);
+    extract_field!(obj => dto.description: string);
     
     // 处理 JSON 值字段（转换为字符串）
-    extract_field!(obj, dto, default: json);
-    extract_field!(obj, dto, example: json);
+    extract_field!(obj => dto.default: json);
+    extract_field!(obj => dto.example: json);
     
     // 处理引用
-    extract_field!(obj, dto, reference: string, "$ref");
+    extract_field!(obj => dto.reference: string, "$ref");
 }
 
 /// 提取数值约束字段
 fn extract_numeric_constraints(obj: &ObjectElement, dto: &mut SchemaDto) {
-    extract_field!(obj, dto, minimum: number);
-    extract_field!(obj, dto, maximum: number);
-    extract_field!(obj, dto, exclusive_minimum: number, "exclusiveMinimum");
-    extract_field!(obj, dto, exclusive_maximum: number, "exclusiveMaximum");
-    extract_field!(obj, dto, multiple_of: number, "multipleOf");
+    extract_field!(obj => dto.minimum: number);
+    extract_field!(obj => dto.maximum: number);
+    extract_field!(obj => dto.exclusive_minimum: number, "exclusiveMinimum");
+    extract_field!(obj => dto.exclusive_maximum: number, "exclusiveMaximum");
+    extract_field!(obj => dto.multiple_of: number, "multipleOf");
 }
 
 /// 提取字符串约束字段
 fn extract_string_constraints(obj: &ObjectElement, dto: &mut SchemaDto) {
-    extract_field!(obj, dto, min_length: number as usize, "minLength");
-    extract_field!(obj, dto, max_length: number as usize, "maxLength");
-    extract_field!(obj, dto, pattern: string);
+    extract_field!(obj => dto.min_length: usize, "minLength");
+    extract_field!(obj => dto.max_length: usize, "maxLength");
+    extract_field!(obj => dto.pattern: string);
 }
 
 /// 提取数组约束字段
 fn extract_array_constraints(obj: &ObjectElement, dto: &mut SchemaDto) {
-    extract_field!(obj, dto, min_items: number as usize, "minItems");
-    extract_field!(obj, dto, max_items: number as usize, "maxItems");
-    extract_field!(obj, dto, unique_items: bool, "uniqueItems");
+    extract_field!(obj => dto.min_items: usize, "minItems");
+    extract_field!(obj => dto.max_items: usize, "maxItems");
+    extract_field!(obj => dto.unique_items: bool, "uniqueItems");
     
     if let Some(items_element) = obj.get_element("items") {
         dto.items = Some(Box::new(element_to_schema_dto(items_element)));
@@ -301,8 +301,8 @@ fn extract_array_constraints(obj: &ObjectElement, dto: &mut SchemaDto) {
 
 /// 提取对象约束字段
 fn extract_object_constraints(obj: &ObjectElement, dto: &mut SchemaDto) {
-    extract_field!(obj, dto, min_properties: number as usize, "minProperties");
-    extract_field!(obj, dto, max_properties: number as usize, "maxProperties");
+    extract_field!(obj => dto.min_properties: usize, "minProperties");
+    extract_field!(obj => dto.max_properties: usize, "maxProperties");
     
     // 处理 required 数组 - 使用通用函数
     dto.required = extract_string_array(obj, "required");
@@ -353,11 +353,11 @@ fn extract_enum_and_composition(obj: &ObjectElement, dto: &mut SchemaDto) {
 
 /// 提取 OpenAPI 特有字段
 fn extract_openapi_specific(obj: &ObjectElement, dto: &mut SchemaDto) {
-    extract_field!(obj, dto, format: string);
-    extract_field!(obj, dto, nullable: bool);
-    extract_field!(obj, dto, read_only: bool, "readOnly");
-    extract_field!(obj, dto, write_only: bool, "writeOnly");
-    extract_field!(obj, dto, deprecated: bool);
+    extract_field!(obj => dto.format: string);
+    extract_field!(obj => dto.nullable: bool);
+    extract_field!(obj => dto.read_only: bool, "readOnly");
+    extract_field!(obj => dto.write_only: bool, "writeOnly");
+    extract_field!(obj => dto.deprecated: bool);
     
     // 处理 externalDocs
     if let Some(external_docs_element) = obj.get_element("externalDocs") {
