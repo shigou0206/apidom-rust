@@ -27,14 +27,6 @@
 //! - 宏系统：为将来的代码生成做准备
 //! - 标准化模式：所有 DTO 遵循相同的转换模式
 //! - 类型安全：强类型转换，减少运行时错误
-
-use std::collections::HashMap;
-use apidom_ns_openapi_3_0::dto::*;
-use apidom_ns_openapi_3_0::dto::example::ExampleDto;
-use apidom_ns_openapi_3_0::dto::info::{InfoDto, ContactDto, LicenseDto};
-use apidom_ns_openapi_3_0::dto::schema::{SchemaDto, SchemaType, ExternalDocsDto};
-use apidom_ns_openapi_3_0::dto::openapi::*;
-use apidom_ns_openapi_3_0::elements::example::ExampleElement;
 use apidom_ast::minim_model::*;
 use serde_json::json;
 
@@ -353,6 +345,7 @@ fn demo_performance_comparison() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// 辅助函数：将 JSON 值转换为 AST Element（简化版）
+#[allow(dead_code)]
 fn json_to_element(value: serde_json::Value) -> Element {
     match value {
         serde_json::Value::Null => Element::Null(NullElement::default()),
