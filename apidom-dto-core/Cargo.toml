@@ -1,0 +1,9 @@
+[package]
+name = "apidom-dto-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+apidom-ast = { path = "../apidom-ast" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0" 

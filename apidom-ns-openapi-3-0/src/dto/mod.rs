@@ -40,6 +40,7 @@ pub mod conversion;
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use serde_json::Value;
+use apidom_dto_core::{DtoFieldSpecs, FromObjectElement, ObjectElementExt, FieldSpec, FieldType};
 
 /// 通用扩展字段类型，用于存储 x-* 字段和其他动态内容
 /// 为了兼容 flutter_rust_bridge，使用 String 存储 JSON 序列化后的值
@@ -93,4 +94,7 @@ pub use conversion::{
 // 重新导出可用的宏 
 pub use crate::extract_field; 
 
-pub use self::example::ExampleDto; 
+pub use self::example::ExampleDto;
+
+// Re-export the traits
+pub use apidom_dto_core::{DtoFieldSpecs, FromObjectElement, ObjectElementExt, FieldSpec, FieldType}; 

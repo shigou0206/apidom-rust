@@ -8,10 +8,10 @@ use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use crate::dto::{
     Extensions, IntoDto,
-    ObjectElementExt, ExtensionExtractor, extract_reference
+    ObjectElementExt, ExtensionExtractor
 };
-use crate::extract_field;
 use crate::elements::example::ExampleElement;
+use apidom_dto_derive::{DtoSpec, FromObjectElement, IntoFrbDto};
 
 /// Example DTO - 纯数据传输对象
 /// 
@@ -19,7 +19,7 @@ use crate::elements::example::ExampleElement;
 /// - 没有元数据、类标签、折叠状态等内部信息
 /// - 所有字段都是基本类型或 JSON 值
 /// - 支持序列化为 JSON 直接传输给前端
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, DtoSpec, FromObjectElement, IntoFrbDto)]
 pub struct ExampleDto {
     /// 示例的简短描述
     pub summary: Option<String>,
@@ -28,16 +28,21 @@ pub struct ExampleDto {
     pub description: Option<String>,
     
     /// 示例的具体值，可以是任意 JSON 数据（序列化为字符串以兼容 FRB）
+    #[dto(json)]
     pub value: Option<String>,
     
     /// 外部示例的 URL
+    #[dto(rename = "externalValue")]
     pub external_value: Option<String>,
     
     /// 引用信息（如果这是一个引用）
+    #[serde(rename = "$ref")]
+    #[dto(reference, rename = "$ref")]
     pub reference: Option<String>,
     
     /// 扩展字段（x-*）和其他动态内容
     #[serde(flatten)]
+    #[dto(extensions)]
     pub extensions: Extensions,
 }
 
@@ -83,50 +88,14 @@ impl ExampleDto {
 /// AST → DTO 转换实现
 impl IntoDto<ExampleDto> for ExampleElement {
     fn into_dto(self) -> ExampleDto {
-        let mut dto = ExampleDto::new();
-        
-        // 提取基本字段
-        extract_field!(self.object => dto.summary: string);
-        extract_field!(self.object => dto.description: string);
-        extract_field!(self.object => dto.external_value: string, "externalValue");
-        
-        // 处理 value 字段 - 转换为 JSON 字符串
-        extract_field!(self.object => dto.value: json);
-        
-        // 提取引用信息 - 使用通用函数
-        dto.reference = extract_reference(&self.object);
-        
-        // 提取扩展字段
-        dto.extensions = ExtensionExtractor::new()
-            .with_known_fields(&["summary", "description", "value", "externalValue", "$ref"])
-            .extract(&self.object);
-        
-        dto
+        ExampleDto::from_object_element(&self.object)
     }
 }
 
 /// AST → DTO 转换实现（借用版本）
 impl IntoDto<ExampleDto> for &ExampleElement {
     fn into_dto(self) -> ExampleDto {
-        let mut dto = ExampleDto::new();
-        
-        // 提取基本字段
-        extract_field!(self.object => dto.summary: string);
-        extract_field!(self.object => dto.description: string);
-        extract_field!(self.object => dto.external_value: string, "externalValue");
-        
-        // 处理 value 字段 - 转换为 JSON 字符串
-        extract_field!(self.object => dto.value: json);
-        
-        // 提取引用信息 - 使用通用函数
-        dto.reference = extract_reference(&self.object);
-        
-        // 提取扩展字段
-        dto.extensions = ExtensionExtractor::new()
-            .with_known_fields(&["summary", "description", "value", "externalValue", "$ref"])
-            .extract(&self.object);
-        
-        dto
+        ExampleDto::from_object_element(&self.object)
     }
 }
 

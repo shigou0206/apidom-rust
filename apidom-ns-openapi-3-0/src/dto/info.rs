@@ -7,31 +7,35 @@ use crate::dto::{
     Extensions, IntoDto,
     ObjectElementExt, ExtensionExtractor
 };
-use crate::extract_field;
 use crate::elements::info::InfoElement;
 use apidom_ast::minim_model::Element;
+use apidom_dto_derive::{DtoSpec, FromObjectElement, IntoFrbDto};
 
 /// Contact DTO - 联系信息
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, DtoSpec, FromObjectElement, IntoFrbDto)]
 pub struct ContactDto {
     pub name: Option<String>,
     pub url: Option<String>,
     pub email: Option<String>,
+    
     #[serde(flatten)]
+    #[dto(extensions)]
     pub extensions: Extensions,
 }
 
 /// License DTO - 许可证信息
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, DtoSpec, FromObjectElement, IntoFrbDto)]
 pub struct LicenseDto {
     pub name: String,
     pub url: Option<String>,
+    
     #[serde(flatten)]
+    #[dto(extensions)]
     pub extensions: Extensions,
 }
 
 /// Info DTO - API 基本信息
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, DtoSpec, FromObjectElement, IntoFrbDto)]
 pub struct InfoDto {
     /// API 标题（必填）
     pub title: String,
@@ -43,6 +47,7 @@ pub struct InfoDto {
     pub description: Option<String>,
     
     /// 服务条款 URL
+    #[dto(rename = "termsOfService")]
     pub terms_of_service: Option<String>,
     
     /// 联系信息
@@ -53,6 +58,7 @@ pub struct InfoDto {
     
     /// 扩展字段（x-*）
     #[serde(flatten)]
+    #[dto(extensions)]
     pub extensions: Extensions,
 }
 
@@ -133,96 +139,13 @@ impl LicenseDto {
 /// AST → DTO 转换实现
 impl IntoDto<InfoDto> for InfoElement {
     fn into_dto(self) -> InfoDto {
-        let mut dto = InfoDto::new(
-            self.object.get_string("title").unwrap_or_default(),
-            self.object.get_string("version").unwrap_or_default(),
-        );
-        
-        // 提取可选字段
-        extract_field!(self.object => dto.description: string);
-        extract_field!(self.object => dto.terms_of_service: string, "termsOfService");
-        
-        // 提取嵌套对象
-        if let Some(contact_elem) = self.object.get_element("contact") {
-            dto.contact = Some(element_to_contact_dto(contact_elem));
-        }
-        
-        if let Some(license_elem) = self.object.get_element("license") {
-            dto.license = Some(element_to_license_dto(license_elem));
-        }
-        
-        // 提取扩展字段
-        dto.extensions = ExtensionExtractor::new()
-            .with_known_fields(&["title", "version", "description", "termsOfService", "contact", "license"])
-            .extract(&self.object);
-        
-        dto
+        InfoDto::from_object_element(&self.object)
     }
 }
 
 impl IntoDto<InfoDto> for &InfoElement {
     fn into_dto(self) -> InfoDto {
-        let mut dto = InfoDto::new(
-            self.title().map(|s| s.content.clone()).unwrap_or_default(),
-            self.version().map(|s| s.content.clone()).unwrap_or_default()
-        );
-        
-        extract_field!(self.object => dto.description: string);
-        extract_field!(self.object => dto.terms_of_service: string, "termsOfService");
-        
-        if let Some(contact_elem) = self.object.get_element("contact") {
-            dto.contact = Some(element_to_contact_dto(contact_elem));
-        }
-        
-        if let Some(license_elem) = self.object.get_element("license") {
-            dto.license = Some(element_to_license_dto(license_elem));
-        }
-        
-        dto.extensions = ExtensionExtractor::new()
-            .with_known_fields(&["title", "version", "description", "termsOfService", "contact", "license"])
-            .extract(&self.object);
-        
-        dto
-    }
-}
-
-/// 辅助函数：将 Element 转换为 ContactDto
-fn element_to_contact_dto(element: &Element) -> ContactDto {
-    if let Element::Object(obj) = element {
-        let mut contact = ContactDto::new();
-        
-        extract_field!(obj => contact.name: string);
-        extract_field!(obj => contact.email: string);
-        extract_field!(obj => contact.url: string);
-        
-        // 提取扩展字段
-        contact.extensions = ExtensionExtractor::new()
-            .with_known_fields(&["name", "email", "url"])
-            .extract(obj);
-        
-        contact
-    } else {
-        ContactDto::new()
-    }
-}
-
-/// 辅助函数：将 Element 转换为 LicenseDto
-fn element_to_license_dto(element: &Element) -> LicenseDto {
-    if let Element::Object(obj) = element {
-        let mut license = LicenseDto::new(
-            obj.get_string("name").unwrap_or_default()
-        );
-        
-        extract_field!(obj => license.url: string);
-        
-        // 提取扩展字段
-        license.extensions = ExtensionExtractor::new()
-            .with_known_fields(&["name", "url"])
-            .extract(obj);
-        
-        license
-    } else {
-        LicenseDto::new("")
+        InfoDto::from_object_element(&self.object)
     }
 }
 

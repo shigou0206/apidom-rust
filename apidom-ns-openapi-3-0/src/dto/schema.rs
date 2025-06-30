@@ -13,6 +13,7 @@ use crate::extract_field;
 use crate::elements::schema::OpenApiSchemaElement;
 use apidom_ast::minim_model::*;
 use serde_json;
+use apidom_dto_derive::{DtoSpec, FromObjectElement, IntoFrbDto};
 
 /// Schema 类型枚举
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -28,7 +29,7 @@ pub enum SchemaType {
 }
 
 /// ExternalDocs DTO
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, DtoSpec, FromObjectElement, IntoFrbDto)]
 #[serde(rename_all = "camelCase")]
 pub struct ExternalDocsDto {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -37,68 +38,113 @@ pub struct ExternalDocsDto {
     pub url: String,
     
     #[serde(flatten, skip_serializing_if = "Extensions::is_empty")]
+    #[dto(extensions)]
     pub extensions: Extensions,
 }
 
 /// Schema DTO - JSON Schema/OpenAPI Schema 对象
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, DtoSpec, FromObjectElement, IntoFrbDto)]
 pub struct SchemaDto {
     // 核心字段
     #[serde(rename = "type")]
+    #[dto(rename = "type")]
     pub schema_type: Option<SchemaType>,
     
     pub title: Option<String>,
     pub description: Option<String>,
-    pub default: Option<String>, // JSON 序列化字符串
-    pub example: Option<String>, // JSON 序列化字符串
+    
+    #[dto(json)]
+    pub default: Option<String>,
+    
+    #[dto(json)]
+    pub example: Option<String>,
     
     // 数值约束
     pub minimum: Option<f64>,
     pub maximum: Option<f64>,
+    
+    #[dto(rename = "exclusiveMinimum")]
     pub exclusive_minimum: Option<f64>,
+    
+    #[dto(rename = "exclusiveMaximum")]
     pub exclusive_maximum: Option<f64>,
+    
+    #[dto(rename = "multipleOf")]
     pub multiple_of: Option<f64>,
     
     // 字符串约束
+    #[dto(usize, rename = "minLength")]
     pub min_length: Option<usize>,
+    
+    #[dto(usize, rename = "maxLength")]
     pub max_length: Option<usize>,
+    
     pub pattern: Option<String>,
     
     // 数组约束
+    #[dto(usize, rename = "minItems")]
     pub min_items: Option<usize>,
+    
+    #[dto(usize, rename = "maxItems")]
     pub max_items: Option<usize>,
+    
+    #[dto(rename = "uniqueItems")]
     pub unique_items: Option<bool>,
+    
     pub items: Option<Box<SchemaDto>>,
     
     // 对象约束
+    #[dto(usize, rename = "minProperties")]
     pub min_properties: Option<usize>,
+    
+    #[dto(usize, rename = "maxProperties")]
     pub max_properties: Option<usize>,
+    
     pub required: Option<Vec<String>>,
     pub properties: Option<HashMap<String, SchemaDto>>,
+    
+    #[dto(rename = "additionalProperties")]
     pub additional_properties: Option<Box<SchemaDto>>,
     
     // 枚举和组合
     #[serde(rename = "enum")]
-    pub enum_values: Option<Vec<String>>, // JSON 序列化字符串数组
+    #[dto(rename = "enum")]
+    pub enum_values: Option<Vec<String>>,
+    
+    #[dto(rename = "allOf")]
     pub all_of: Option<Vec<SchemaDto>>,
+    
+    #[dto(rename = "anyOf")]
     pub any_of: Option<Vec<SchemaDto>>,
+    
+    #[dto(rename = "oneOf")]
     pub one_of: Option<Vec<SchemaDto>>,
+    
     pub not: Option<Box<SchemaDto>>,
     
     // OpenAPI 特有字段
     pub format: Option<String>,
     pub nullable: Option<bool>,
+    
+    #[dto(rename = "readOnly")]
     pub read_only: Option<bool>,
+    
+    #[dto(rename = "writeOnly")]
     pub write_only: Option<bool>,
+    
     pub deprecated: Option<bool>,
+    
+    #[dto(rename = "externalDocs")]
     pub external_docs: Option<ExternalDocsDto>,
     
     // 引用
     #[serde(rename = "$ref")]
+    #[dto(reference, rename = "$ref")]
     pub reference: Option<String>,
     
     // 扩展字段
     #[serde(flatten)]
+    #[dto(extensions)]
     pub extensions: Extensions,
 }
 
@@ -252,134 +298,6 @@ impl ExternalDocsDto {
     }
 }
 
-// ==================== 字段提取函数 ====================
-
-/// 提取基础字段（type, title, description 等）
-fn extract_basic_fields(obj: &ObjectElement, dto: &mut SchemaDto) {
-    // 处理 type 字段
-    if let Some(type_str) = obj.get_string("type") {
-        dto.schema_type = parse_schema_type(&type_str);
-    }
-    
-    extract_field!(obj => dto.title: string);
-    extract_field!(obj => dto.description: string);
-    
-    // 处理 JSON 值字段（转换为字符串）
-    extract_field!(obj => dto.default: json);
-    extract_field!(obj => dto.example: json);
-    
-    // 处理引用
-    extract_field!(obj => dto.reference: string, "$ref");
-}
-
-/// 提取数值约束字段
-fn extract_numeric_constraints(obj: &ObjectElement, dto: &mut SchemaDto) {
-    extract_field!(obj => dto.minimum: number);
-    extract_field!(obj => dto.maximum: number);
-    extract_field!(obj => dto.exclusive_minimum: number, "exclusiveMinimum");
-    extract_field!(obj => dto.exclusive_maximum: number, "exclusiveMaximum");
-    extract_field!(obj => dto.multiple_of: number, "multipleOf");
-}
-
-/// 提取字符串约束字段
-fn extract_string_constraints(obj: &ObjectElement, dto: &mut SchemaDto) {
-    extract_field!(obj => dto.min_length: usize, "minLength");
-    extract_field!(obj => dto.max_length: usize, "maxLength");
-    extract_field!(obj => dto.pattern: string);
-}
-
-/// 提取数组约束字段
-fn extract_array_constraints(obj: &ObjectElement, dto: &mut SchemaDto) {
-    extract_field!(obj => dto.min_items: usize, "minItems");
-    extract_field!(obj => dto.max_items: usize, "maxItems");
-    extract_field!(obj => dto.unique_items: bool, "uniqueItems");
-    
-    if let Some(items_element) = obj.get_element("items") {
-        dto.items = Some(Box::new(element_to_schema_dto(items_element)));
-    }
-}
-
-/// 提取对象约束字段
-fn extract_object_constraints(obj: &ObjectElement, dto: &mut SchemaDto) {
-    extract_field!(obj => dto.min_properties: usize, "minProperties");
-    extract_field!(obj => dto.max_properties: usize, "maxProperties");
-    
-    // 处理 required 数组 - 使用通用函数
-    dto.required = extract_string_array(obj, "required");
-    
-    // 处理 properties
-    if let Some(props_obj) = obj.get_object("properties") {
-        let mut properties = HashMap::new();
-        for member in &props_obj.content {
-            if let Element::String(prop_name) = &*member.key {
-                let prop_schema = element_to_schema_dto(&member.value);
-                properties.insert(prop_name.content.clone(), prop_schema);
-            }
-        }
-        if !properties.is_empty() {
-            dto.properties = Some(properties);
-        }
-    }
-    
-    // 处理 additionalProperties
-    if let Some(additional_props) = obj.get_element("additionalProperties") {
-        dto.additional_properties = Some(Box::new(element_to_schema_dto(additional_props)));
-    }
-}
-
-/// 提取枚举和组合字段
-fn extract_enum_and_composition(obj: &ObjectElement, dto: &mut SchemaDto) {
-    // 处理枚举值
-    if let Some(enum_arr) = obj.get_array("enum") {
-        let mut enum_values = Vec::new();
-        for _item in &enum_arr.content {
-            // 简化：使用占位符，实际实现中需要根据 Element 类型进行适当转换
-            enum_values.push(json_value_to_extension_string(&serde_json::Value::String("enum_value".to_string())));
-        }
-        if !enum_values.is_empty() {
-            dto.enum_values = Some(enum_values);
-        }
-    }
-    
-    // 处理组合 schema
-    extract_schema_array(obj, "allOf", &mut dto.all_of);
-    extract_schema_array(obj, "anyOf", &mut dto.any_of);
-    extract_schema_array(obj, "oneOf", &mut dto.one_of);
-    
-    if let Some(not_element) = obj.get_element("not") {
-        dto.not = Some(Box::new(element_to_schema_dto(not_element)));
-    }
-}
-
-/// 提取 OpenAPI 特有字段
-fn extract_openapi_specific(obj: &ObjectElement, dto: &mut SchemaDto) {
-    extract_field!(obj => dto.format: string);
-    extract_field!(obj => dto.nullable: bool);
-    extract_field!(obj => dto.read_only: bool, "readOnly");
-    extract_field!(obj => dto.write_only: bool, "writeOnly");
-    extract_field!(obj => dto.deprecated: bool);
-    
-    // 处理 externalDocs
-    if let Some(external_docs_element) = obj.get_element("externalDocs") {
-        dto.external_docs = Some(element_to_external_docs_dto(external_docs_element));
-    }
-}
-
-/// 辅助函数：提取 schema 数组
-fn extract_schema_array(obj: &ObjectElement, key: &str, target: &mut Option<Vec<SchemaDto>>) {
-    if let Some(arr) = obj.get_array(key) {
-        let mut schemas = Vec::new();
-        for item in &arr.content {
-            schemas.push(element_to_schema_dto(item));
-        }
-        if !schemas.is_empty() {
-            *target = Some(schemas);
-        }
-    }
-}
-
-// ==================== IntoDto 实现 ====================
-
 /// 从 OpenApiSchemaElement 转换为 SchemaDto
 impl IntoDto<SchemaDto> for &OpenApiSchemaElement {
     fn into_dto(self) -> SchemaDto {
@@ -408,68 +326,20 @@ impl IntoDto<SchemaDto> for &ObjectElement {
     }
 }
 
-// ==================== 核心转换函数 ====================
-
-/// 核心转换函数：从 AST Element 转换为 SchemaDto（重构后）
+/// 核心转换函数：从 AST Element 转换为 SchemaDto
 fn element_to_schema_dto(element: &Element) -> SchemaDto {
-    let obj = match element {
-        Element::Object(obj) => obj,
-        _ => return SchemaDto::default(),
-    };
-    
-    let mut dto = SchemaDto::default();
-    
-    // 按类别提取字段
-    extract_basic_fields(obj, &mut dto);
-    extract_numeric_constraints(obj, &mut dto);
-    extract_string_constraints(obj, &mut dto);
-    extract_array_constraints(obj, &mut dto);
-    extract_object_constraints(obj, &mut dto);
-    extract_enum_and_composition(obj, &mut dto);
-    extract_openapi_specific(obj, &mut dto);
-    
-    // 处理扩展字段
-    dto.extensions = extract_extensions(obj);
-    
-    dto
+    match element {
+        Element::Object(obj) => SchemaDto::from_object_element(obj),
+        _ => SchemaDto::default(),
+    }
 }
 
 /// 从 Element 转换为 ExternalDocsDto
 fn element_to_external_docs_dto(element: &Element) -> ExternalDocsDto {
-    let obj = match element {
-        Element::Object(obj) => obj,
-        _ => return ExternalDocsDto::new(""),
-    };
-    
-    let mut dto = ExternalDocsDto::new("");
-    
-    if let Some(url) = obj.get_string("url") {
-        dto.url = url;
+    match element {
+        Element::Object(obj) => ExternalDocsDto::from_object_element(obj),
+        _ => ExternalDocsDto::new(""),
     }
-    
-    if let Some(description) = obj.get_string("description") {
-        dto.description = Some(description);
-    }
-    
-    dto.extensions = extract_extensions(obj);
-    
-    dto
-}
-
-/// 从 ObjectElement 提取扩展字段 - 使用通用提取器
-fn extract_extensions(obj: &ObjectElement) -> Extensions {
-    ExtensionExtractor::new()
-        .with_known_fields(&[
-            "type", "title", "description", "default", "example",
-            "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
-            "minLength", "maxLength", "pattern",
-            "minItems", "maxItems", "uniqueItems", "items",
-            "minProperties", "maxProperties", "required", "properties", "additionalProperties",
-            "enum", "allOf", "anyOf", "oneOf", "not",
-            "format", "nullable", "readOnly", "writeOnly", "deprecated", "externalDocs",
-            "$ref"
-        ])
-        .extract(obj)
 }
 
 /// 解析字符串为 SchemaType
