@@ -121,8 +121,8 @@ fn test_run_once_vs_run_until_fixed_comparison() {
     println!("🔄 Testing run_once vs run_until_fixed behavioral comparison");
     
     // Load test document
-    let yaml = fs::read_to_string("tests/data/petstore.yaml")
-        .expect("Failed to read tests/data/petstore.yaml");
+    let yaml = fs::read_to_string("tests/test_data/petstore.yaml")
+        .expect("Failed to read tests/test_data/petstore.yaml");
     let (cst, _) = CstParser::parse_smart(&yaml);
     let yaml_value: serde_yaml::Value = serde_yaml::from_str(&cst.text())
         .expect("Failed to parse YAML from CST");
@@ -389,8 +389,8 @@ fn test_enhanced_performance_comparison() {
     });
     
     // Medium document (Petstore)
-    let yaml = fs::read_to_string("tests/data/petstore.yaml")
-        .expect("Failed to read tests/data/petstore.yaml");
+    let yaml = fs::read_to_string("tests/test_data/petstore.yaml")
+        .expect("Failed to read tests/test_data/petstore.yaml");
     let (cst, _) = CstParser::parse_smart(&yaml);
     let yaml_value: serde_yaml::Value = serde_yaml::from_str(&cst.text()).unwrap();
     let medium_json: serde_json::Value = serde_yaml::from_value(yaml_value).unwrap();

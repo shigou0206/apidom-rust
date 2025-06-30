@@ -16,8 +16,8 @@ fn test_petstore_cst_parser_direct() {
     println!("🚀 Testing Petstore with CstParser direct approach");
     
     // Read YAML file from tests directory
-    let yaml = fs::read_to_string("tests/data/petstore.yaml")
-        .expect("Failed to read tests/data/petstore.yaml");
+    let yaml = fs::read_to_string("tests/test_data/petstore.yaml")
+        .expect("Failed to read tests/test_data/petstore.yaml");
     
     // Parse using CstParser with smart detection - returns (TreeCursorSyntaxNode, SourceType)
     let (cst, detected_type) = CstParser::parse_smart(&yaml);
@@ -67,8 +67,8 @@ fn test_petstore_full_pipeline() {
     let start = Instant::now();
     
     // Step 1: Read YAML
-    let yaml = fs::read_to_string("tests/data/petstore.yaml")
-        .expect("Failed to read tests/data/petstore.yaml");
+    let yaml = fs::read_to_string("tests/test_data/petstore.yaml")
+        .expect("Failed to read tests/test_data/petstore.yaml");
     
     // Step 2: Parse to CST - no unwrap needed as parse_smart returns (cst, type)
     let (cst, detected_type) = CstParser::parse_smart(&yaml);
@@ -116,8 +116,8 @@ fn test_petstore_builders() {
     println!("🔧 Testing individual builders");
     
     // Parse the document
-    let yaml = fs::read_to_string("tests/data/petstore.yaml")
-        .expect("Failed to read tests/data/petstore.yaml");
+    let yaml = fs::read_to_string("tests/test_data/petstore.yaml")
+        .expect("Failed to read tests/test_data/petstore.yaml");
     let (cst, _) = CstParser::parse_smart(&yaml);
     
     // Convert to AST
@@ -169,8 +169,8 @@ fn test_petstore_builders() {
 fn test_petstore_structure_analysis() {
     println!("🔍 Analyzing Petstore structure");
     
-    let yaml = fs::read_to_string("tests/data/petstore.yaml")
-        .expect("Failed to read tests/data/petstore.yaml");
+    let yaml = fs::read_to_string("tests/test_data/petstore.yaml")
+        .expect("Failed to read tests/test_data/petstore.yaml");
     let (cst, _) = CstParser::parse_smart(&yaml);
     
     // Convert to AST
@@ -233,7 +233,7 @@ fn test_petstore_validation() {
     println!("✅ Testing OpenAPI document validation");
     
     let yaml = fs::read_to_string("tests/test_data/petstore.yaml")
-        .expect("Failed to read tests/data/petstore.yaml");
+        .expect("Failed to read tests/test_data/petstore.yaml");
     let (cst, _) = CstParser::parse_smart(&yaml);
     
     // Convert to AST

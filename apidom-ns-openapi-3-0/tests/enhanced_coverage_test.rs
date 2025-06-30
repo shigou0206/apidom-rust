@@ -278,8 +278,8 @@ fn test_run_once_detailed_comparison() {
     println!("🔄 Testing detailed run_once vs run_until_fixed comparison");
     
     // 加载测试文档
-    let yaml = fs::read_to_string("tests/data/petstore.yaml")
-        .expect("Failed to read tests/data/petstore.yaml");
+    let yaml = fs::read_to_string("tests/test_data/petstore.yaml")
+        .expect("Failed to read tests/test_data/petstore.yaml");
     let (cst, _) = CstParser::parse_smart(&yaml);
     let yaml_value: serde_yaml::Value = serde_yaml::from_str(&cst.text()).unwrap();
     let json_value: serde_json::Value = serde_yaml::from_value(yaml_value).unwrap();
@@ -622,8 +622,8 @@ fn test_performance_benchmark_stability() {
     println!("📈 Testing performance benchmark stability");
     
     // 创建标准测试文档
-    let yaml = fs::read_to_string("tests/data/petstore.yaml")
-        .expect("Failed to read tests/data/petstore.yaml");
+    let yaml = fs::read_to_string("tests/test_data/petstore.yaml")
+        .expect("Failed to read tests/test_data/petstore.yaml");
     let (cst, _) = CstParser::parse_smart(&yaml);
     let yaml_value: serde_yaml::Value = serde_yaml::from_str(&cst.text()).unwrap();
     let json_value: serde_json::Value = serde_yaml::from_value(yaml_value).unwrap();
