@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
-use serde_json::Value;
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use apidom_ast::Fold;
 use crate::specification::{VisitorSpec, VisitorRef};
 use crate::fold_pass::FoldPass;
@@ -129,7 +128,7 @@ pub trait SpecificationHandler: Send + Sync + fmt::Debug {
     fn transform_element(&self, element: Element, context: &TransformContext) -> Result<Element, SpecificationError>;
     
     /// Get specification-specific metadata
-    fn get_metadata(&self) -> HashMap<String, Value>;
+    fn get_metadata(&self) -> HashMap<String, SimpleValue>;
 }
 
 /// Processing hook trait for custom processing
@@ -152,7 +151,7 @@ pub struct ProcessingContext {
     /// Current processing iteration
     pub iteration: usize,
     /// Processing metadata
-    pub metadata: HashMap<String, Value>,
+    pub metadata: HashMap<String, SimpleValue>,
     /// Reference to the framework
     pub framework_config: FrameworkConfig,
 }
@@ -163,9 +162,9 @@ pub struct TransformContext {
     /// Current specification type
     pub specification_type: SpecificationType,
     /// Available transformations
-    pub transformations: HashMap<String, Value>,
+    pub transformations: HashMap<String, SimpleValue>,
     /// Processing metadata
-    pub metadata: HashMap<String, Value>,
+    pub metadata: HashMap<String, SimpleValue>,
 }
 
 /// Validation result
@@ -178,7 +177,7 @@ pub struct ValidationResult {
     /// Validation warnings
     pub warnings: Vec<ValidationWarning>,
     /// Validation metadata
-    pub metadata: HashMap<String, Value>,
+    pub metadata: HashMap<String, SimpleValue>,
 }
 
 /// Validation error
@@ -409,7 +408,7 @@ impl ExtensibleFramework {
     }
 
     /// Get specification metadata
-    pub fn get_specification_metadata(&self, spec_type: &SpecificationType) -> Option<HashMap<String, Value>> {
+    pub fn get_specification_metadata(&self, spec_type: &SpecificationType) -> Option<HashMap<String, SimpleValue>> {
         self.specifications.get(spec_type).map(|handler| handler.get_metadata())
     }
 }
@@ -633,26 +632,30 @@ impl SpecificationHandler for AsyncApi26Handler {
     fn transform_element(&self, element: Element, _context: &TransformContext) -> Result<Element, SpecificationError> {
         // Basic transformation - add AsyncAPI-specific metadata
         if let Element::Object(mut obj) = element {
-            obj.meta.properties.insert("specification".to_string(), Value::String("AsyncAPI 2.6".to_string()));
-            obj.meta.properties.insert("specification_type".to_string(), Value::String("asyncapi26".to_string()));
+            obj.meta.properties.insert("specification".to_string(), SimpleValue::string("AsyncAPI 2.6".to_string()));
+            obj.meta.properties.insert("specification_type".to_string(), SimpleValue::string("asyncapi26".to_string()));
+            obj.meta.properties.insert(
+                "specification-extension".to_string(),
+                SimpleValue::bool(true)
+            );
             Ok(Element::Object(obj))
         } else {
             Ok(element)
         }
     }
 
-    fn get_metadata(&self) -> HashMap<String, Value> {
+    fn get_metadata(&self) -> HashMap<String, SimpleValue> {
         let mut metadata = HashMap::new();
-        metadata.insert("specification".to_string(), Value::String("AsyncAPI".to_string()));
-        metadata.insert("version".to_string(), Value::String("2.6.0".to_string()));
-        metadata.insert("description".to_string(), Value::String("AsyncAPI 2.6 specification handler".to_string()));
-        metadata.insert("supported_features".to_string(), Value::Array(vec![
-            Value::String("channels".to_string()),
-            Value::String("messages".to_string()),
-            Value::String("schemas".to_string()),
-            Value::String("servers".to_string()),
-            Value::String("operations".to_string()),
-            Value::String("bindings".to_string()),
+        metadata.insert("specification".to_string(), SimpleValue::string("AsyncAPI".to_string()));
+        metadata.insert("version".to_string(), SimpleValue::string("2.6.0".to_string()));
+        metadata.insert("description".to_string(), SimpleValue::string("AsyncAPI 2.6 specification handler".to_string()));
+        metadata.insert("supported_features".to_string(), SimpleValue::array(vec![
+            SimpleValue::string("channels".to_string()),
+            SimpleValue::string("messages".to_string()),
+            SimpleValue::string("schemas".to_string()),
+            SimpleValue::string("servers".to_string()),
+            SimpleValue::string("operations".to_string()),
+            SimpleValue::string("bindings".to_string()),
         ]));
         metadata
     }
@@ -808,25 +811,29 @@ impl SpecificationHandler for JsonSchema202012Handler {
     fn transform_element(&self, element: Element, _context: &TransformContext) -> Result<Element, SpecificationError> {
         // Basic transformation - add JSON Schema-specific metadata
         if let Element::Object(mut obj) = element {
-            obj.meta.properties.insert("specification".to_string(), Value::String("JSON Schema 2020-12".to_string()));
-            obj.meta.properties.insert("specification_type".to_string(), Value::String("jsonschema202012".to_string()));
+            obj.meta.properties.insert("specification".to_string(), SimpleValue::string("JSON Schema 2020-12".to_string()));
+            obj.meta.properties.insert("specification_type".to_string(), SimpleValue::string("jsonschema202012".to_string()));
+            obj.meta.properties.insert(
+                "specification-extension".to_string(),
+                SimpleValue::bool(true)
+            );
             Ok(Element::Object(obj))
         } else {
             Ok(element)
         }
     }
 
-    fn get_metadata(&self) -> HashMap<String, Value> {
+    fn get_metadata(&self) -> HashMap<String, SimpleValue> {
         let mut metadata = HashMap::new();
-        metadata.insert("specification".to_string(), Value::String("JSON Schema".to_string()));
-        metadata.insert("version".to_string(), Value::String("2020-12".to_string()));
-        metadata.insert("description".to_string(), Value::String("JSON Schema 2020-12 specification handler".to_string()));
-        metadata.insert("supported_features".to_string(), Value::Array(vec![
-            Value::String("type_validation".to_string()),
-            Value::String("property_validation".to_string()),
-            Value::String("array_validation".to_string()),
-            Value::String("conditional_schemas".to_string()),
-            Value::String("meta_schemas".to_string()),
+        metadata.insert("specification".to_string(), SimpleValue::string("JSON Schema".to_string()));
+        metadata.insert("version".to_string(), SimpleValue::string("2020-12".to_string()));
+        metadata.insert("description".to_string(), SimpleValue::string("JSON Schema 2020-12 specification handler".to_string()));
+        metadata.insert("supported_features".to_string(), SimpleValue::array(vec![
+            SimpleValue::string("type_validation".to_string()),
+            SimpleValue::string("property_validation".to_string()),
+            SimpleValue::string("array_validation".to_string()),
+            SimpleValue::string("conditional_schemas".to_string()),
+            SimpleValue::string("meta_schemas".to_string()),
         ]));
         metadata
     }

@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 
 /// Represents the `license` object in OpenAPI 3.1 specification.
 #[derive(Debug, Clone)]

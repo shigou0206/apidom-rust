@@ -44,8 +44,8 @@
 //! ## Usage Examples
 //!
 //! ```rust
-//! use apidom_ast::fold::DefaultFolder;
-//! use apidom_ast::minim_model::*;
+//! use apidom_ast::DefaultFolder;
+//! use apidom_ast::*;
 //! use apidom_ns_openapi_3_0::builder::example_builder::*;
 //!
 //! // Create a sample element for testing
@@ -74,8 +74,7 @@
 //! - ✅ Type validation and conversion
 //! - ✅ SpecPath metadata injection: `["document", "objects", "Example"]`
 
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
+use apidom_ast::*;
 use serde_json::Value;
 use crate::elements::example::ExampleElement;
 
@@ -180,62 +179,63 @@ fn convert_to_string_element(element: &Element) -> Option<StringElement> {
 /// Add metadata for fixed fields
 fn add_fixed_field_metadata(example: &mut ExampleElement, field_name: &str) {
     let key = format!("fixedField_{}", field_name);
-    example.object.meta.properties.insert(key, Value::Bool(true));
+    example.object.meta.properties.insert(key, SimpleValue::Bool(true));
     example.object.classes.content.push(Element::String(StringElement::new("fixed-field")));
 }
 
 /// Add metadata for references
 fn add_ref_metadata(example: &mut ExampleElement, field_name: &str) {
     let key = format!("ref_{}", field_name);
-    example.object.meta.properties.insert(key, Value::Bool(true));
-    example.object.meta.properties.insert("referenced-element".to_string(), Value::String("example".to_string()));
+    example.object.meta.properties.insert(key, SimpleValue::Bool(true));
+    example.object.meta.properties.insert("referenced-element".to_string(), SimpleValue::String("example".to_string()));
 }
 
 /// Add metadata for specification extensions
 fn add_specification_extension_metadata(example: &mut ExampleElement, field_name: &str) {
     let key = format!("specificationExtension_{}", field_name);
-    example.object.meta.properties.insert(key, Value::Bool(true));
+    example.object.meta.properties.insert(key, SimpleValue::Bool(true));
     example.object.classes.content.push(Element::String(StringElement::new("specification-extension")));
 }
 
 /// Add metadata for fallback handling
 fn add_fallback_metadata(example: &mut ExampleElement, field_name: &str) {
     let key = format!("fallback_{}", field_name);
-    example.object.meta.properties.insert(key, Value::Bool(true));
+    example.object.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add validation error metadata
 fn add_validation_error_metadata(example: &mut ExampleElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
-    example.object.meta.properties.insert(key, Value::String(error_msg.to_string()));
+    example.object.meta.properties.insert(key, SimpleValue::String(error_msg.to_string()));
 }
 
 /// Add reference element class when externalValue is present
 fn add_reference_element_class(example: &mut ExampleElement) {
     example.object.classes.content.push(Element::String(StringElement::new("reference-element")));
-    example.object.meta.properties.insert("isReferenceElement".to_string(), Value::Bool(true));
+    example.object.meta.properties.insert("isReferenceElement".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add overall processing metadata
 fn add_processing_metadata(example: &mut ExampleElement) {
-    example.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
-    example.object.meta.properties.insert("fixedFieldsVisitor".to_string(), Value::Bool(true));
-    example.object.meta.properties.insert("fallbackVisitor".to_string(), Value::Bool(true));
+    example.object.meta.properties.insert("processed".to_string(), SimpleValue::Bool(true));
+    example.object.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::Bool(true));
+    example.object.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add spec path metadata
 fn add_spec_path_metadata(example: &mut ExampleElement) {
-    example.object.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("document".to_string()),
-        Value::String("objects".to_string()),
-        Value::String("Example".to_string())
+    example.object.meta.properties.insert("specPath".to_string(), SimpleValue::Array(vec![
+        SimpleValue::String("document".to_string()),
+        SimpleValue::String("objects".to_string()),
+        SimpleValue::String("Example".to_string())
     ]));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::DefaultFolder;
+    use apidom_ast::DefaultFolder;
+    use apidom_ast::*;
 
     #[test]
     fn test_basic_example_builder() {
@@ -293,11 +293,11 @@ mod tests {
         assert!(example.object.meta.properties.contains_key("specPath"));
         
         // Verify spec path
-        if let Some(Value::Array(path)) = example.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(path)) = example.object.meta.properties.get("specPath") {
             assert_eq!(path.len(), 3);
-            assert_eq!(path[0], Value::String("document".to_string()));
-            assert_eq!(path[1], Value::String("objects".to_string()));
-            assert_eq!(path[2], Value::String("Example".to_string()));
+            assert!(matches!(&path[0], SimpleValue::String(s) if s == "document"));
+            assert!(matches!(&path[1], SimpleValue::String(s) if s == "objects"));
+            assert!(matches!(&path[2], SimpleValue::String(s) if s == "Example"));
         }
         
         // Verify fixed-field classes
@@ -337,7 +337,7 @@ mod tests {
         
         // Verify reference metadata
         assert!(example.object.meta.properties.contains_key("isReferenceElement"));
-        if let Some(Value::Bool(is_ref)) = example.object.meta.properties.get("isReferenceElement") {
+        if let Some(SimpleValue::Bool(is_ref)) = example.object.meta.properties.get("isReferenceElement") {
             assert!(is_ref);
         }
         
@@ -400,7 +400,7 @@ mod tests {
         // Verify reference metadata
         assert!(example.object.meta.properties.contains_key("ref_$ref"));
         assert!(example.object.meta.properties.contains_key("referenced-element"));
-        if let Some(Value::String(ref_type)) = example.object.meta.properties.get("referenced-element") {
+        if let Some(SimpleValue::String(ref_type)) = example.object.meta.properties.get("referenced-element") {
             assert_eq!(ref_type, "example");
         }
     }
@@ -562,11 +562,11 @@ mod tests {
         assert!(example.object.meta.properties.contains_key("fallbackVisitor"));
         
         // 7. SpecPath metadata
-        if let Some(Value::Array(path)) = example.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(path)) = example.object.meta.properties.get("specPath") {
             assert_eq!(path.len(), 3);
-            assert_eq!(path[0], Value::String("document".to_string()));
-            assert_eq!(path[1], Value::String("objects".to_string()));
-            assert_eq!(path[2], Value::String("Example".to_string()));
+            assert!(matches!(&path[0], SimpleValue::String(s) if s == "document"));
+            assert!(matches!(&path[1], SimpleValue::String(s) if s == "objects"));
+            assert!(matches!(&path[2], SimpleValue::String(s) if s == "Example"));
         }
         
         // 8. Classes

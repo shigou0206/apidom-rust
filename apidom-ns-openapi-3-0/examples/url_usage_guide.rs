@@ -8,7 +8,7 @@
 /// 3. **辅助函数** - 从 OpenAPI 文档提取信息的工具函数
 
 use std::collections::HashMap;
-use apidom_ast::minim_model::{Element, ObjectElement, ArrayElement, StringElement};
+use apidom_ast::{Element, ObjectElement, ArrayElement, StringElement};
 use apidom_ns_openapi_3_0::url_builder::{UrlBuilder, UrlTemplate, extract_server_urls};
 
 fn main() {

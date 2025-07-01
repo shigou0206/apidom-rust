@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 
 /// Represents the `reference` element in OpenAPI 3.x/3.1.
 /// Typically used to `$ref` other components or schema fragments.

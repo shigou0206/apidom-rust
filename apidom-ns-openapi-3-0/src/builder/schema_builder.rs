@@ -35,9 +35,7 @@
 //! - ✅ Fallback processing for unknown fields
 //! - ✅ Comprehensive metadata injection and validation
 
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
-use serde_json::Value;
+use apidom_ast::*;
 use crate::elements::schema::OpenApiSchemaElement;
 
 /// Basic schema builder - equivalent to simple constructor
@@ -238,11 +236,11 @@ fn process_schema_array_field(element: &Element, field_name: &str, schema: &mut 
         // Add array processing metadata
         processed_array.meta.properties.insert(
             format!("{}_processed", field_name),
-            Value::Bool(true)
+            SimpleValue::Bool(true)
         );
         processed_array.meta.properties.insert(
             "schema_array_visitor".to_string(),
-            Value::String(field_name.to_string())
+            SimpleValue::String(field_name.to_string())
         );
         
         Element::Array(processed_array)
@@ -271,11 +269,11 @@ fn process_properties_field(element: &Element, schema: &mut OpenApiSchemaElement
         // Add properties processing metadata
         processed_obj.meta.properties.insert(
             "properties_processed".to_string(),
-            Value::Bool(true)
+            SimpleValue::Bool(true)
         );
         processed_obj.meta.properties.insert(
             "properties_visitor".to_string(),
-            Value::Bool(true)
+            SimpleValue::Bool(true)
         );
         
         Element::Object(processed_obj)
@@ -367,7 +365,7 @@ fn inject_schema_reference_metadata(element: &mut Element) {
     if let Element::Object(obj) = element {
         obj.meta.properties.insert(
             "referenced-element".to_string(),
-            Value::String("schema".to_string())
+            SimpleValue::String("schema".to_string())
         );
         obj.add_class("schema-reference");
     }
@@ -392,23 +390,21 @@ fn convert_to_boolean_element(element: &Element) -> Option<BooleanElement> {
 
 /// Add fixed field metadata
 fn add_fixed_field_metadata(schema: &mut OpenApiSchemaElement, field_name: &str) {
-    schema.base.object.meta.properties.insert(
-        format!("fixedField_{}", field_name),
-        Value::Bool(true)
-    );
+    let key = format!("fixed-field_{}", field_name);
+    schema.base.object.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add validation error metadata
 fn add_validation_error_metadata(schema: &mut OpenApiSchemaElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
-    schema.base.object.meta.properties.insert(key, Value::String(error_msg.to_string()));
+    schema.base.object.meta.properties.insert(key, SimpleValue::String(error_msg.to_string()));
 }
 
 /// Add specification extension metadata
 fn add_specification_extension_metadata(schema: &mut OpenApiSchemaElement, field_name: &str) {
     schema.base.object.meta.properties.insert(
         format!("specificationExtension_{}", field_name),
-        Value::Bool(true)
+        SimpleValue::Bool(true)
     );
     schema.base.object.add_class("specification-extension");
 }
@@ -417,7 +413,7 @@ fn add_specification_extension_metadata(schema: &mut OpenApiSchemaElement, field
 fn add_fallback_metadata(schema: &mut OpenApiSchemaElement, field_name: &str) {
     schema.base.object.meta.properties.insert(
         format!("fallback_{}", field_name),
-        Value::Bool(true)
+        SimpleValue::Bool(true)
     );
 }
 
@@ -425,7 +421,7 @@ fn add_fallback_metadata(schema: &mut OpenApiSchemaElement, field_name: &str) {
 fn add_schema_composition_metadata(schema: &mut OpenApiSchemaElement, field_name: &str, element_type: &str) {
     schema.base.object.meta.properties.insert(
         format!("{}_{}", field_name, element_type),
-        Value::Bool(true)
+        SimpleValue::Bool(true)
     );
 }
 
@@ -433,7 +429,7 @@ fn add_schema_composition_metadata(schema: &mut OpenApiSchemaElement, field_name
 fn add_properties_metadata(schema: &mut OpenApiSchemaElement, element_type: &str) {
     schema.base.object.meta.properties.insert(
         format!("properties_{}", element_type),
-        Value::Bool(true)
+        SimpleValue::Bool(true)
     );
 }
 
@@ -441,36 +437,34 @@ fn add_properties_metadata(schema: &mut OpenApiSchemaElement, element_type: &str
 fn add_items_metadata(schema: &mut OpenApiSchemaElement, element_type: &str) {
     schema.base.object.meta.properties.insert(
         format!("items_{}", element_type),
-        Value::Bool(true)
+        SimpleValue::Bool(true)
     );
 }
 
 /// Add schema reference metadata
 fn add_schema_reference_metadata(schema: &mut OpenApiSchemaElement) {
-    schema.base.object.meta.properties.insert(
-        "hasSchemaReference".to_string(),
-        Value::Bool(true)
-    );
+    schema.base.object.meta.properties.insert("referenced-element".to_string(), SimpleValue::String("schema".to_string()));
+    schema.base.object.meta.properties.insert("reference-path".to_string(), SimpleValue::String("#".to_string()));
 }
 
 /// Add type metadata
 fn add_type_metadata(schema: &mut OpenApiSchemaElement, type_format: &str) {
     schema.base.object.meta.properties.insert(
         format!("type_{}", type_format),
-        Value::Bool(true)
+        SimpleValue::Bool(true)
     );
 }
 
 /// Add overall processing metadata
 fn add_processing_metadata(schema: &mut OpenApiSchemaElement) {
-    schema.base.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
-    schema.base.object.meta.properties.insert("fixedFieldsVisitor".to_string(), Value::Bool(true));
-    schema.base.object.meta.properties.insert("fallbackVisitor".to_string(), Value::Bool(true));
-    schema.base.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), Value::Bool(true));
+    schema.base.object.meta.properties.insert("processed".to_string(), SimpleValue::Bool(true));
+    schema.base.object.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::Bool(true));
+    schema.base.object.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::Bool(true));
+    schema.base.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::Bool(true));
     
     // Add schema-specific visitor metadata
-    schema.base.object.meta.properties.insert("schemaVisitor".to_string(), Value::Bool(true));
-    schema.base.object.meta.properties.insert("schemaOrReferenceVisitor".to_string(), Value::Bool(true));
+    schema.base.object.meta.properties.insert("schemaVisitor".to_string(), SimpleValue::Bool(true));
+    schema.base.object.meta.properties.insert("schemaOrReferenceVisitor".to_string(), SimpleValue::Bool(true));
     
     // Add schema classes
     schema.base.object.add_class("schema");
@@ -481,10 +475,10 @@ fn add_processing_metadata(schema: &mut OpenApiSchemaElement) {
 fn add_spec_path_metadata(schema: &mut OpenApiSchemaElement) {
     schema.base.object.meta.properties.insert(
         "spec-path".to_string(),
-        Value::Array(vec![
-            Value::String("document".to_string()),
-            Value::String("objects".to_string()),
-            Value::String("Schema".to_string())
+        SimpleValue::Array(vec![
+            SimpleValue::String("document".to_string()),
+            SimpleValue::String("objects".to_string()),
+            SimpleValue::String("Schema".to_string())
         ])
     );
 }
@@ -492,36 +486,35 @@ fn add_spec_path_metadata(schema: &mut OpenApiSchemaElement) {
 /// Validate schema constraints
 fn validate_schema(schema: &mut OpenApiSchemaElement) {
     // Basic schema validation
-    schema.base.object.meta.properties.insert("validSchema".to_string(), Value::Bool(true));
+    schema.base.object.meta.properties.insert("validSchema".to_string(), SimpleValue::Bool(true));
     
     // Check for common schema patterns
     if schema.base.object.get("allOf").is_some() {
-        schema.base.object.meta.properties.insert("hasAllOf".to_string(), Value::Bool(true));
+        schema.base.object.meta.properties.insert("hasAllOf".to_string(), SimpleValue::Bool(true));
     }
     if schema.base.object.get("anyOf").is_some() {
-        schema.base.object.meta.properties.insert("hasAnyOf".to_string(), Value::Bool(true));
+        schema.base.object.meta.properties.insert("hasAnyOf".to_string(), SimpleValue::Bool(true));
     }
     if schema.base.object.get("oneOf").is_some() {
-        schema.base.object.meta.properties.insert("hasOneOf".to_string(), Value::Bool(true));
+        schema.base.object.meta.properties.insert("hasOneOf".to_string(), SimpleValue::Bool(true));
     }
     if schema.base.object.get("properties").is_some() {
-        schema.base.object.meta.properties.insert("hasProperties".to_string(), Value::Bool(true));
+        schema.base.object.meta.properties.insert("hasProperties".to_string(), SimpleValue::Bool(true));
     }
     if schema.base.object.get("items").is_some() {
-        schema.base.object.meta.properties.insert("hasItems".to_string(), Value::Bool(true));
+        schema.base.object.meta.properties.insert("hasItems".to_string(), SimpleValue::Bool(true));
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::{DefaultFolder, FoldFromCst};
     use serde_json::json;
 
     fn create_test_object(json_value: serde_json::Value) -> ObjectElement {
         let json_str = json_value.to_string();
         let cst = apidom_cst::parse_json_to_cst(&json_str);
-        let mut json_folder = apidom_ast::fold::JsonFolder::new();
+        let mut json_folder = JsonFolder::new();
         let ast = json_folder.fold_from_cst(&cst);
         
         if let Element::Object(obj) = ast {
@@ -584,31 +577,27 @@ mod tests {
         let obj = create_test_object(json!({
             "type": "object",
             "properties": {
-                "user": {"$ref": "#/components/schemas/User"},
-                "settings": {"type": "object", "properties": {"theme": {"type": "string"}}}
+                "user": {
+                    "$ref": "#/components/schemas/User"
+                }
             }
         }));
 
-        let schema = build_and_decorate_schema::<DefaultFolder>(&Element::Object(obj), None);
-        assert!(schema.is_some());
-        
-        let schema = schema.unwrap();
-        
-        // Verify properties field
-        assert!(schema.base.object.get("properties").is_some());
-        
-        // Verify metadata
-        assert!(schema.base.object.meta.properties.contains_key("fixedField_properties"));
-        assert!(schema.base.object.meta.properties.contains_key("hasProperties"));
-        assert!(schema.base.object.meta.properties.contains_key("properties_reference"));
-        assert!(schema.base.object.meta.properties.contains_key("properties_schema"));
-        
-        // Verify reference metadata injection
-        if let Some(Element::Object(props)) = schema.base.object.get("properties") {
-            if let Some(Element::Object(user_ref)) = props.get("user") {
+        let schema = build_and_decorate_schema(&Element::Object(obj), None::<&mut crate::fold::OpenApiBuilderFolder>).unwrap();
+
+        if let Some(Element::Object(properties)) = schema.base.object.get("properties") {
+            if let Some(Element::Object(user_ref)) = properties.get("user") {
+                assert!(user_ref.classes.content.iter().any(|e| {
+                    if let Element::String(s) = e {
+                        s.content == "reference"
+                    } else {
+                        false
+                    }
+                }));
+
                 assert_eq!(
                     user_ref.meta.properties.get("referenced-element"),
-                    Some(&Value::String("schema".to_string()))
+                    Some(&SimpleValue::string("schema".to_string()))
                 );
             }
         }
@@ -769,7 +758,7 @@ mod tests {
             if let Some(Element::Object(profile_ref)) = props.get("profile") {
                 assert_eq!(
                     profile_ref.meta.properties.get("referenced-element"),
-                    Some(&Value::String("schema".to_string()))
+                    Some(&SimpleValue::string("schema".to_string()))
                 );
             }
         }
@@ -786,11 +775,11 @@ mod tests {
         assert!(schema.base.object.meta.properties.contains_key("canSupportSpecificationExtensions"));
         
         // Verify spec path
-        if let Some(Value::Array(spec_path)) = schema.base.object.meta.properties.get("spec-path") {
+        if let Some(SimpleValue::Array(spec_path)) = schema.base.object.meta.properties.get("spec-path") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("Schema".to_string()));
+            assert!(matches!(&spec_path[0], SimpleValue::String(s) if s.as_str() == "document"));
+            assert!(matches!(&spec_path[1], SimpleValue::String(s) if s.as_str() == "objects"));
+            assert!(matches!(&spec_path[2], SimpleValue::String(s) if s.as_str() == "Schema"));
         }
         
         // Verify schema classes

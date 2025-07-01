@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use crate::elements::parameter::ParameterElement;
 use serde_json::Value;
 
@@ -15,7 +15,7 @@ pub fn build_and_decorate_parameter<F>(
     mut folder: Option<&mut F>
 ) -> Option<ParameterElement>
 where
-    F: apidom_ast::fold::Fold,
+    F: Fold,
 {
     let obj = element.as_object()?;
     let mut parameter = ParameterElement::new();
@@ -82,7 +82,7 @@ where
                                 if let Element::Object(ref mut example_obj) = processed_value {
                                     example_obj.meta.properties.insert(
                                         "media-type".to_string(),
-                                        Value::String(example_key.content.clone())
+                                        SimpleValue::String(example_key.content.clone())
                                     );
                                 }
                                 
@@ -109,7 +109,7 @@ where
                                 if let Element::Object(ref mut media_type_obj) = processed_value {
                                     media_type_obj.meta.properties.insert(
                                         "media-type".to_string(),
-                                        Value::String(media_type_key.content.clone())
+                                        SimpleValue::String(media_type_key.content.clone())
                                     );
                                 }
                                 
@@ -147,7 +147,7 @@ where
     parameter.object.add_class("parameter");
     parameter.object.meta.properties.insert(
         "element-type".to_string(),
-        Value::String("parameter".to_string())
+        SimpleValue::String("parameter".to_string())
     );
     
     // Validate parameter structure
@@ -185,7 +185,7 @@ fn convert_to_boolean_element(element: &Element) -> Option<BooleanElement> {
 fn add_fixed_field_metadata(obj: &mut ObjectElement, field_name: &str) {
     obj.meta.properties.insert(
         format!("fixed-field-{}", field_name),
-        Value::Bool(true)
+        SimpleValue::Bool(true)
     );
 }
 
@@ -194,7 +194,7 @@ fn add_specification_extension_metadata(obj: &mut ObjectElement, field_name: &st
     obj.add_class("specification-extension");
     obj.meta.properties.insert(
         "specification-extension".to_string(),
-        Value::String(field_name.to_string())
+        SimpleValue::String(field_name.to_string())
     );
 }
 
@@ -202,7 +202,7 @@ fn add_specification_extension_metadata(obj: &mut ObjectElement, field_name: &st
 fn add_fallback_field_metadata(obj: &mut ObjectElement, field_name: &str) {
     obj.meta.properties.insert(
         format!("fallback-field-{}", field_name),
-        Value::Bool(true)
+        SimpleValue::Bool(true)
     );
 }
 
@@ -211,11 +211,11 @@ fn add_reference_metadata(obj: &mut ObjectElement, ref_path: &str, element_type:
     obj.add_class("reference");
     obj.meta.properties.insert(
         "referenced-element".to_string(),
-        Value::String(element_type.to_string())
+        SimpleValue::String(element_type.to_string())
     );
     obj.meta.properties.insert(
         "reference-path".to_string(),
-        Value::String(ref_path.to_string())
+        SimpleValue::String(ref_path.to_string())
     );
 }
 
@@ -353,11 +353,11 @@ mod tests {
         }));
         assert_eq!(
             param.object.meta.properties.get("referenced-element"),
-            Some(&Value::String("parameter".to_string()))
+            Some(&SimpleValue::String("parameter".to_string()))
         );
         assert_eq!(
             param.object.meta.properties.get("reference-path"),
-            Some(&Value::String("#/components/parameters/ApiKey".to_string()))
+            Some(&SimpleValue::String("#/components/parameters/ApiKey".to_string()))
         );
     }
 
@@ -407,7 +407,7 @@ mod tests {
         }));
         assert_eq!(
             param.object.meta.properties.get("referenced-element"),
-            Some(&Value::String("parameter".to_string()))
+            Some(&SimpleValue::String("parameter".to_string()))
         );
         
         // 4. Element classification
@@ -420,7 +420,7 @@ mod tests {
         }));
         assert_eq!(
             param.object.meta.properties.get("element-type"),
-            Some(&Value::String("parameter".to_string()))
+            Some(&SimpleValue::String("parameter".to_string()))
         );
     }
 }

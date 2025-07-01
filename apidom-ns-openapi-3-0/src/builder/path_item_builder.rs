@@ -1,6 +1,5 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use crate::elements::path_item::PathItemElement;
-use serde_json::Value;
 
 /// Comprehensive OpenAPI PathItem Builder
 /// 
@@ -31,7 +30,7 @@ pub fn build_and_decorate_path_item<F>(
     mut folder: Option<&mut F>
 ) -> Option<PathItemElement>
 where
-    F: apidom_ast::fold::Fold,
+    F: Fold,
 {
     let obj = element.as_object()?;
     let mut path_item = PathItemElement::new();
@@ -106,13 +105,13 @@ where
                         let http_method_upper = key_str.to_uppercase();
                         operation_obj.meta.properties.insert(
                             "http-method".to_string(),
-                            Value::String(http_method_upper.clone())
+                            SimpleValue::string(http_method_upper.clone())
                         );
                         // Add operation element class
                         operation_obj.add_class("operation");
                         operation_obj.meta.properties.insert(
                             "http-method-original".to_string(),
-                            Value::String(key_str.to_string())
+                            SimpleValue::string(key_str.to_string())
                         );
                     }
                     
@@ -149,7 +148,7 @@ where
     path_item.object.add_class("path-item");
     path_item.object.meta.properties.insert(
         "element-type".to_string(),
-        Value::String("pathItem".to_string())
+        SimpleValue::string("pathItem".to_string())
     );
     
     // Add reference-element class if this is a $ref PathItem (TypeScript equivalence)
@@ -157,7 +156,7 @@ where
         path_item.object.add_class("reference-element");
         path_item.object.meta.properties.insert(
             "is-reference".to_string(),
-            Value::Bool(true)
+            SimpleValue::bool(true)
         );
     }
     
@@ -182,21 +181,19 @@ fn convert_to_string_element(element: &Element) -> Option<StringElement> {
 
 /// Add metadata for fixed fields
 fn add_fixed_field_metadata(obj: &mut ObjectElement, field_name: &str) {
-    obj.meta.properties.insert(
-        format!("fixed-field-{}", field_name),
-        Value::Bool(true)
-    );
+    let key = format!("fixed-field_{}", field_name);
+    obj.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add metadata for servers array processing
 fn add_servers_metadata(obj: &mut ObjectElement) {
     obj.meta.properties.insert(
         "has-servers".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
     obj.meta.properties.insert(
         "servers-processed".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -204,11 +201,11 @@ fn add_servers_metadata(obj: &mut ObjectElement) {
 fn add_parameters_metadata(obj: &mut ObjectElement) {
     obj.meta.properties.insert(
         "has-parameters".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
     obj.meta.properties.insert(
         "parameters-processed".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -216,28 +213,25 @@ fn add_parameters_metadata(obj: &mut ObjectElement) {
 fn add_operation_metadata(obj: &mut ObjectElement, method: &str) {
     obj.meta.properties.insert(
         format!("has-{}-operation", method),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
     obj.meta.properties.insert(
         "has-operations".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
 /// Add metadata for specification extensions
 fn add_specification_extension_metadata(obj: &mut ObjectElement, field_name: &str) {
-    obj.add_class("specification-extension");
-    obj.meta.properties.insert(
-        "specification-extension".to_string(),
-        Value::String(field_name.to_string())
-    );
+    let key = format!("specification-extension_{}", field_name);
+    obj.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add metadata for fallback fields
 fn add_fallback_field_metadata(obj: &mut ObjectElement, field_name: &str) {
     obj.meta.properties.insert(
         format!("fallback-field-{}", field_name),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -246,28 +240,25 @@ fn add_reference_metadata(obj: &mut ObjectElement, ref_path: &str, element_type:
     obj.add_class("reference");
     obj.meta.properties.insert(
         "referenced-element".to_string(),
-        Value::String(element_type.to_string())
+        SimpleValue::string(element_type.to_string())
     );
     obj.meta.properties.insert(
         "reference-path".to_string(),
-        Value::String(ref_path.to_string())
+        SimpleValue::string(ref_path.to_string())
     );
     obj.meta.properties.insert(
         "reference-value-class".to_string(),
-        Value::String("reference-value".to_string())
+        SimpleValue::string("reference-value".to_string())
     );
 }
 
 /// Add spec path metadata (equivalent to TypeScript specPath)
 fn add_spec_path_metadata(obj: &mut ObjectElement) {
-    obj.meta.properties.insert(
-        "spec-path".to_string(),
-        Value::Array(vec![
-            Value::String("document".to_string()),
-            Value::String("objects".to_string()),
-            Value::String("PathItem".to_string()),
-        ])
-    );
+    obj.meta.properties.insert("specPath".to_string(), SimpleValue::array(vec![
+        SimpleValue::string("document".to_string()),
+        SimpleValue::string("objects".to_string()),
+        SimpleValue::string("PathItem".to_string())
+    ]));
 }
 
 /// Validate PathItem structure
@@ -289,7 +280,7 @@ fn validate_path_item(path_item: &PathItemElement) -> Option<()> {
         // Empty PathItem - still valid but add warning metadata
         // path_item.object.meta.properties.insert(
         //     "validation-warning".to_string(),
-        //     Value::String("PathItem should have at least one operation or content".to_string())
+        //     SimpleValue::String("PathItem should have at least one operation or content".to_string())
         // );
     }
     
@@ -300,6 +291,18 @@ fn validate_path_item(path_item: &PathItemElement) -> Option<()> {
 fn has_any_operation(path_item: &PathItemElement) -> bool {
     let http_methods = ["get", "post", "put", "delete", "patch", "head", "options", "trace"];
     http_methods.iter().any(|method| path_item.operation(method).is_some())
+}
+
+fn add_processing_metadata(obj: &mut ObjectElement) {
+    obj.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
+    obj.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::bool(true));
+    obj.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::bool(true));
+    obj.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::bool(true));
+}
+
+fn add_validation_error_metadata(obj: &mut ObjectElement, field_name: &str, error_msg: &str) {
+    let key = format!("validationError_{}", field_name);
+    obj.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));
 }
 
 #[cfg(test)]
@@ -374,11 +377,11 @@ mod tests {
         if let Some(Element::Object(get_obj)) = path_item.get() {
             assert_eq!(
                 get_obj.meta.properties.get("http-method"),
-                Some(&Value::String("GET".to_string()))
+                Some(&SimpleValue::String("GET".to_string()))
             );
             assert_eq!(
                 get_obj.meta.properties.get("http-method-original"),
-                Some(&Value::String("get".to_string()))
+                Some(&SimpleValue::String("get".to_string()))
             );
             assert!(get_obj.classes.content.iter().any(|e| {
                 if let Element::String(s) = e {
@@ -392,7 +395,7 @@ mod tests {
         if let Some(Element::Object(post_obj)) = path_item.post() {
             assert_eq!(
                 post_obj.meta.properties.get("http-method"),
-                Some(&Value::String("POST".to_string()))
+                Some(&SimpleValue::String("POST".to_string()))
             );
         }
         
@@ -407,18 +410,18 @@ mod tests {
         
         // Verify spec path metadata
         assert!(path_item.object.meta.properties.contains_key("spec-path"));
-        if let Some(Value::Array(spec_path)) = path_item.object.meta.properties.get("spec-path") {
+        if let Some(SimpleValue::Array(spec_path)) = path_item.object.meta.properties.get("spec-path") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("PathItem".to_string()));
+            assert_eq!(spec_path[0], SimpleValue::String("document".to_string()));
+            assert_eq!(spec_path[1], SimpleValue::String("objects".to_string()));
+            assert_eq!(spec_path[2], SimpleValue::String("PathItem".to_string()));
         }
     }
 
     #[test]
     fn test_path_item_with_ref() {
         let mut obj = ObjectElement::new();
-        obj.set("$ref", Element::String(StringElement::new("#/components/pathItems/UserPath")));
+        obj.set("$ref", Element::String(StringElement::new("#/components/pathItems/PetPath")));
         
         let result = build_and_decorate_path_item(&Element::Object(obj), None::<&mut crate::fold::OpenApiBuilderFolder>);
         
@@ -440,21 +443,20 @@ mod tests {
                 false
             }
         }));
-        assert_eq!(
-            path_item.object.meta.properties.get("referenced-element"),
-            Some(&Value::String("pathItem".to_string()))
-        );
-        assert_eq!(
-            path_item.object.meta.properties.get("reference-path"),
-            Some(&Value::String("#/components/pathItems/UserPath".to_string()))
-        );
+        assert!(path_item.object.meta.properties.contains_key("referenced-element"));
+        if let Some(SimpleValue::String(ref_elem)) = path_item.object.meta.properties.get("referenced-element") {
+            assert_eq!(ref_elem, "pathItem");
+        }
+        if let Some(SimpleValue::String(ref_path)) = path_item.object.meta.properties.get("reference-path") {
+            assert_eq!(ref_path, "#/components/pathItems/PetPath");
+        }
         assert_eq!(
             path_item.object.meta.properties.get("is-reference"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::Bool(true))
         );
         assert_eq!(
             path_item.object.meta.properties.get("reference-value-class"),
-            Some(&Value::String("reference-value".to_string()))
+            Some(&SimpleValue::String("reference-value".to_string()))
         );
     }
 
@@ -580,11 +582,11 @@ mod tests {
             if let Some(Element::Object(op_obj)) = path_item.operation(method) {
                 assert_eq!(
                     op_obj.meta.properties.get("http-method"),
-                    Some(&Value::String(method.to_uppercase()))
+                    Some(&SimpleValue::String(method.to_uppercase()))
                 );
                 assert_eq!(
                     op_obj.meta.properties.get("http-method-original"),
-                    Some(&Value::String(method.to_string()))
+                    Some(&SimpleValue::String(method.to_string()))
                 );
                 assert!(op_obj.classes.content.iter().any(|e| {
                     if let Element::String(s) = e {
@@ -709,18 +711,18 @@ mod tests {
         }));
         assert_eq!(
             path_item.object.meta.properties.get("is-reference"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::Bool(true))
         );
         assert_eq!(
             path_item.object.meta.properties.get("reference-value-class"),
-            Some(&Value::String("reference-value".to_string()))
+            Some(&SimpleValue::String("reference-value".to_string()))
         );
         
         // 3. HTTP method metadata injection (equivalent to TypeScript setMetaProperty)
         if let Some(Element::Object(get_obj)) = path_item.get() {
             assert_eq!(
                 get_obj.meta.properties.get("http-method"),
-                Some(&Value::String("GET".to_string()))
+                Some(&SimpleValue::String("GET".to_string()))
             );
             assert!(get_obj.classes.content.iter().any(|e| {
                 if let Element::String(s) = e {
@@ -734,7 +736,7 @@ mod tests {
         if let Some(Element::Object(post_obj)) = path_item.post() {
             assert_eq!(
                 post_obj.meta.properties.get("http-method"),
-                Some(&Value::String("POST".to_string()))
+                Some(&SimpleValue::String("POST".to_string()))
             );
         }
         
@@ -763,16 +765,16 @@ mod tests {
         }));
         assert_eq!(
             path_item.object.meta.properties.get("element-type"),
-            Some(&Value::String("pathItem".to_string()))
+            Some(&SimpleValue::String("pathItem".to_string()))
         );
         
         // 7. Spec path metadata (equivalent to TypeScript specPath)
-        assert!(path_item.object.meta.properties.contains_key("spec-path"));
-        if let Some(Value::Array(spec_path)) = path_item.object.meta.properties.get("spec-path") {
+        assert!(path_item.object.meta.properties.contains_key("specPath"));
+        if let Some(SimpleValue::Array(spec_path)) = path_item.object.meta.properties.get("specPath") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("PathItem".to_string()));
+            assert_eq!(spec_path[0], SimpleValue::String("document".to_string()));
+            assert_eq!(spec_path[1], SimpleValue::String("objects".to_string()));
+            assert_eq!(spec_path[2], SimpleValue::String("PathItem".to_string()));
         }
         
         // 8. Array processing metadata

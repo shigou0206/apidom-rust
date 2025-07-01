@@ -1,6 +1,4 @@
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
-use serde_json::Value;
+use apidom_ast::*;
 use crate::elements::discriminator_mapping::DiscriminatorMappingElement;
 
 /// Basic discriminator mapping builder
@@ -67,43 +65,43 @@ fn convert_to_string_element(element: &Element) -> Option<StringElement> {
 /// Add metadata for mapping fields
 fn add_mapping_field_metadata(mapping: &mut DiscriminatorMappingElement, field_name: &str) {
     let key = format!("mappingField_{}", field_name);
-    mapping.object.meta.properties.insert(key, Value::Bool(true));
+    mapping.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
 /// Add metadata for type conversions
 fn add_type_conversion_metadata(mapping: &mut DiscriminatorMappingElement, field_name: &str, expected_type: &str) {
     let key = format!("typeConversion_{}", field_name);
-    mapping.object.meta.properties.insert(key, Value::String(expected_type.to_string()));
+    mapping.object.meta.properties.insert(key, SimpleValue::string(expected_type.to_string()));
 }
 
 /// Add metadata for fallback handling
 fn add_fallback_metadata(mapping: &mut DiscriminatorMappingElement, field_name: &str) {
     let key = format!("fallback_{}", field_name);
-    mapping.object.meta.properties.insert(key, Value::Bool(true));
+    mapping.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
 /// Add validation error metadata
 fn add_validation_error_metadata(mapping: &mut DiscriminatorMappingElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
-    mapping.object.meta.properties.insert(key, Value::String(error_msg.to_string()));
+    mapping.object.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));
 }
 
 /// Add overall processing metadata
 fn add_processing_metadata(mapping: &mut DiscriminatorMappingElement) {
-    mapping.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
+    mapping.object.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
 }
 
 /// Add spec path metadata
 fn add_spec_path_metadata(mapping: &mut DiscriminatorMappingElement) {
-    mapping.object.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("value".to_string())
+    mapping.object.meta.properties.insert("specPath".to_string(), SimpleValue::array(vec![
+        SimpleValue::string("value".to_string())
     ]));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::DefaultFolder;
+    use apidom_ast::*;
 
     #[test]
     fn test_basic_discriminator_mapping_builder() {

@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 
 /// OpenAPI Discriminator Mapping Element
 /// Specialized element for discriminator mapping which is a Map type rather than generic Object

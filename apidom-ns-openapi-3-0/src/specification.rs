@@ -27,8 +27,7 @@
 //! - Allows creation of amended specifications from existing ones
 
 use std::collections::HashMap;
-use apidom_ast::minim_model::Element;
-use apidom_ast::fold::Fold;
+use apidom_ast::*;
 use crate::builder::*;
 
 /// Visitor function signature for element processing
@@ -1133,7 +1132,7 @@ fn apply_fixed_fields_processing(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::minim_model::*;
+    use apidom_ast::*;
 
     #[test]
     fn test_create_openapi_specification() {

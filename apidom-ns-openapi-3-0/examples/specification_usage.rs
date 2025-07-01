@@ -3,7 +3,7 @@
 //! This example demonstrates how to use the OpenAPI 3.0 specification structure
 //! for processing OpenAPI documents with visitor patterns.
 
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use apidom_ns_openapi_3_0::specification::*;
 
 fn main() {

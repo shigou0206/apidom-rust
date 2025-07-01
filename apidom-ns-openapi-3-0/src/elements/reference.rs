@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 
 /// OpenAPI Reference Element
 #[derive(Debug, Clone)]

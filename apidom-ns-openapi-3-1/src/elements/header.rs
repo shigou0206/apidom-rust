@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 
 /// Represents an OpenAPI 3.1 `header` object.
 #[derive(Debug, Clone)]

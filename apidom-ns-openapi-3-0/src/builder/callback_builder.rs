@@ -1,7 +1,5 @@
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
+use apidom_ast::*;
 use crate::elements::callback::CallbackElement;
-use serde_json::Value;
 
 /// 构建 OpenAPI CallbackElement（适配 Minim ObjectElement → CallbackElement）
 /// 支持运行时表达式检测、$ref 处理、递归折叠等高级功能
@@ -31,7 +29,7 @@ pub fn build_callback(element: &Element) -> Option<CallbackElement> {
                         // 添加运行时表达式元数据
                         path_item_obj.meta.properties.insert(
                             "runtime-expression".to_string(),
-                            Value::String(key.clone())
+                            SimpleValue::string(key.clone())
                         );
                     }
                 }
@@ -43,7 +41,7 @@ pub fn build_callback(element: &Element) -> Option<CallbackElement> {
                     if obj.has_key("$ref") {
                         obj.meta.properties.insert(
                             "referenced-element".to_string(),
-                            Value::String("callback".to_string())
+                            SimpleValue::string("callback".to_string())
                         );
                     }
                 }
@@ -77,7 +75,7 @@ pub fn build_callback_with_folder(element: &Element, folder: &mut dyn Fold) -> O
                     if obj.element == "pathItem" || contains_path_item_operations(&folded_value) {
                         obj.meta.properties.insert(
                             "runtime-expression".to_string(),
-                            Value::String(key.clone())
+                            SimpleValue::string(key.clone())
                         );
                     }
                 }
@@ -89,14 +87,14 @@ pub fn build_callback_with_folder(element: &Element, folder: &mut dyn Fold) -> O
                     if obj.has_key("$ref") {
                         obj.meta.properties.insert(
                             "referenced-element".to_string(),
-                            Value::String("callback".to_string())
+                            SimpleValue::string("callback".to_string())
                         );
                         
                         // 添加引用路径到元数据
                         if let Some(Element::String(ref_str)) = obj.get("$ref") {
                             obj.meta.properties.insert(
                                 "reference-path".to_string(),
-                                Value::String(ref_str.content.clone())
+                                SimpleValue::string(ref_str.content.clone())
                             );
                         }
                     }
@@ -148,7 +146,7 @@ pub fn decorate_callback_with_expressions(callback: &mut CallbackElement) {
             if obj.element == "pathItem" || contains_path_item_operations(&value) {
                 obj.meta.properties.insert(
                     "runtime-expression".to_string(),
-                    Value::String(key.clone())
+                    SimpleValue::string(key.clone())
                 );
                 callback.set(&key, decorated_value);
             }
@@ -183,7 +181,8 @@ pub fn build_and_decorate_callback(element: &Element, folder: Option<&mut dyn Fo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::DefaultFolder;
+    use apidom_ast::{Element, ObjectElement, StringElement};
+    use apidom_ast::DefaultFolder;
 
     #[test]
     fn test_is_runtime_expression() {
@@ -221,7 +220,7 @@ mod tests {
         let callback = result.unwrap();
         if let Some(Element::Object(path_item_obj)) = callback.get("{$request.body#/callbackUrl}") {
             assert!(path_item_obj.meta.properties.contains_key("runtime-expression"));
-            if let Some(Value::String(expr)) = path_item_obj.meta.properties.get("runtime-expression") {
+            if let Some(SimpleValue::String(expr)) = path_item_obj.meta.properties.get("runtime-expression") {
                 assert_eq!(expr, "{$request.body#/callbackUrl}");
             }
         }
@@ -241,7 +240,7 @@ mod tests {
         let callback = result.unwrap();
         if let Some(Element::Object(ref_obj)) = callback.get("webhookCallback") {
             assert!(ref_obj.meta.properties.contains_key("referenced-element"));
-            if let Some(Value::String(ref_type)) = ref_obj.meta.properties.get("referenced-element") {
+            if let Some(SimpleValue::String(ref_type)) = ref_obj.meta.properties.get("referenced-element") {
                 assert_eq!(ref_type, "callback");
             }
         }

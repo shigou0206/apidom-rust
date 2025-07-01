@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::{Element, ObjectElement, StringElement};
+use apidom_ast::{Element, ObjectElement, StringElement};
 
 #[derive(Debug, Clone)]
 pub struct JSONReferenceElement {

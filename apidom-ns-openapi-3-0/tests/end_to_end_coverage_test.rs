@@ -1,13 +1,13 @@
 #![recursion_limit = "256"]
 
 use std::fs;
-use apidom_ast::fold::{json_source_to_ast, JsonFolder};
+use apidom_ast::{json_source_to_ast, JsonFolder};
 use apidom_ns_openapi_3_0::specification::create_openapi_specification;
 use apidom_ns_openapi_3_0::fold_pass::{FoldPipeline, OpenApiSpecPass, SemanticEnhancementPass, ValidationPass};
 use apidom_ns_openapi_3_0::builder::info_builder::build_and_decorate_info;
 use apidom_ns_openapi_3_0::builder::components_builder::build_and_decorate_components;
 use apidom_ns_openapi_3_0::builder::paths_builder::build_and_decorate_paths;
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 
 #[test]
 fn test_yaml_to_cst_to_ast_integration() {

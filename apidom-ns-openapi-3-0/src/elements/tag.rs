@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use crate::elements::external_documentation::ExternalDocumentationElement;
 
 /// OpenAPI Tag Element

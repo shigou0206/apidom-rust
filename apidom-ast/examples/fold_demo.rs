@@ -1,5 +1,5 @@
-use apidom_ast::fold::{Fold, CompositeFolder, folders::*, utils::*};
-use apidom_ast::minim_model::*;
+use apidom_ast::{Fold, CompositeFolder, folders::*, utils::*};
+use apidom_ast::*;
 
 fn main() {
     println!("🚀 API DOM Fold 演示");
@@ -90,6 +90,12 @@ fn main() {
     let uppercased = map_strings(test_data.clone(), |s| s.to_uppercase());
     println!("所有字符串转大写后:");
     print_element_summary(&uppercased);
+
+    if let Some(obj) = test_data.as_object() {
+        if let Some(has_error) = obj.meta.properties.get("hasError") {
+            println!("AST 错误标记: {:?}", has_error);
+        }
+    }
 
     println!("\n✅ 演示完成!");
 }

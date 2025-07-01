@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use crate::elements::openapi3_0::OpenApi3_0Element;
 use crate::builder::*;
 

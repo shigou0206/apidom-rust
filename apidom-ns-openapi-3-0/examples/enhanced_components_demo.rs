@@ -1,7 +1,5 @@
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::DefaultFolder;
+use apidom_ast::*;  
 use apidom_ns_openapi_3_0::builder::components_builder::{build_components, build_and_decorate_components};
-use serde_json::Value;
 
 fn main() {
     println!("🚀 Enhanced Components Builder Demo - TypeScript Equivalence");
@@ -351,7 +349,7 @@ fn analyze_component_field(components_obj: &ObjectElement, field_name: &str, tit
                                 if !item_obj.meta.properties.is_empty() {
                                     println!("        Metadata:");
                                     for (meta_key, meta_value) in &item_obj.meta.properties {
-                                        if let Value::String(value_str) = meta_value {
+                                        if let SimpleValue::String(value_str) = meta_value {
                                             println!("          {}: {}", meta_key, value_str);
                                         }
                                     }

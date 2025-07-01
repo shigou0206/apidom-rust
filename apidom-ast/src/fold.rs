@@ -1,5 +1,6 @@
-use crate::minim_model::*;
-use serde_json::Value;
+use crate::*;
+use crate::simple_value::SimpleValue;
+use std::collections::HashMap;
 
 /// Core folding trait for transforming Minim elements.
 /// 
@@ -11,7 +12,7 @@ use serde_json::Value;
 /// 
 /// ```
 /// use apidom_ast::fold::{Fold, DefaultFolder};
-/// use apidom_ast::minim_model::*;
+/// use apidom_ast::*;
 /// 
 /// // Create a folder that converts all strings to uppercase
 /// struct UppercaseFolder;
@@ -169,20 +170,25 @@ pub trait Fold {
         }
     }
 
+    /// Create metadata for an element
+    fn create_meta_from_node(&mut self, _node: &TreeCursorSyntaxNode) -> MetaElement {
+        MetaElement::default()
+    }
+
     /// Fold JSON values (for meta and attributes)
-    fn fold_json_value(&mut self, value: Value) -> Value {
+    fn fold_json_value(&mut self, value: SimpleValue) -> SimpleValue {
         match value {
-            Value::Array(arr) => Value::Array(
+            SimpleValue::Array(arr) => SimpleValue::array(
                 arr.into_iter()
                     .map(|v| self.fold_json_value(v))
                     .collect()
             ),
-            Value::Object(obj) => Value::Object(
+            SimpleValue::Object(obj) => SimpleValue::object(
                 obj.into_iter()
                     .map(|(k, v)| (k, self.fold_json_value(v)))
                     .collect()
             ),
-            other => other, // Primitives remain unchanged
+            other => other,
         }
     }
 
@@ -211,7 +217,7 @@ pub trait Fold {
 /// 
 /// ```
 /// use apidom_ast::fold::{Fold, DefaultFolder};
-/// use apidom_ast::minim_model::*;
+/// use apidom_ast::*;
 /// 
 /// let mut folder = DefaultFolder;
 /// let element = Element::String(StringElement::new("test"));
@@ -221,7 +227,23 @@ pub trait Fold {
 #[derive(Debug, Default, Clone, Copy)]
 pub struct DefaultFolder;
 
-impl Fold for DefaultFolder {}
+impl Fold for DefaultFolder {
+    fn fold_json_value(&mut self, value: SimpleValue) -> SimpleValue {
+        match value {
+            SimpleValue::Array(arr) => SimpleValue::array(
+                arr.into_iter()
+                    .map(|v| self.fold_json_value(v))
+                    .collect()
+            ),
+            SimpleValue::Object(obj) => SimpleValue::object(
+                obj.into_iter()
+                    .map(|(k, v)| (k, self.fold_json_value(v)))
+                    .collect()
+            ),
+            other => other,
+        }
+    }
+}
 
 /// A folder that applies multiple folders in sequence.
 /// 
@@ -265,6 +287,13 @@ impl Fold for CompositeFolder {
             element = folder.fold_element(element);
         }
         element
+    }
+
+    fn fold_json_value(&mut self, mut value: SimpleValue) -> SimpleValue {
+        for folder in &mut self.folders {
+            value = folder.fold_json_value(value);
+        }
+        value
     }
 }
 
@@ -362,6 +391,22 @@ pub mod utils {
                 other => other, // Leaf elements don't need further traversal
             }
         }
+
+        fn fold_json_value(&mut self, value: SimpleValue) -> SimpleValue {
+            match value {
+                SimpleValue::Array(arr) => SimpleValue::array(
+                    arr.into_iter()
+                        .map(|v| self.fold_json_value(v))
+                        .collect()
+                ),
+                SimpleValue::Object(obj) => SimpleValue::object(
+                    obj.into_iter()
+                        .map(|(k, v)| (k, self.fold_json_value(v)))
+                        .collect()
+                ),
+                other => other,
+            }
+        }
     }
 
     struct ElementFinder<F> {
@@ -395,6 +440,26 @@ pub mod utils {
                 DefaultFolder.fold_element(element)
             } else {
                 element
+            }
+        }
+
+        fn fold_json_value(&mut self, value: SimpleValue) -> SimpleValue {
+            if self.found.is_none() {
+                match value {
+                    SimpleValue::Array(arr) => SimpleValue::array(
+                        arr.into_iter()
+                            .map(|v| self.fold_json_value(v))
+                            .collect()
+                    ),
+                    SimpleValue::Object(obj) => SimpleValue::object(
+                        obj.into_iter()
+                            .map(|(k, v)| (k, self.fold_json_value(v)))
+                            .collect()
+                    ),
+                    other => other,
+                }
+            } else {
+                value
             }
         }
     }
@@ -661,9 +726,9 @@ pub trait FoldFromCst: Fold {
             node.kind.clone(),
             Box::new(CustomElement {
                 element: node.kind.clone(),
-                meta: MetaElement::default(),
+                meta: self.create_meta_from_node(node),
                 attributes: AttributesElement::default(),
-                content: Value::String(node.text().to_string()),
+                content: SimpleValue::string(node.text().to_string()),
             })
         )
     }
@@ -726,17 +791,23 @@ impl JsonFolder {
         if self.include_source_info {
             meta.properties.insert(
                 "sourceLocation".to_string(),
-                serde_json::json!({
-                    "start": {
-                        "line": node.start_point.row + 1,
-                        "column": node.start_point.column + 1,
-                        "byte": node.start_byte
-                    },
-                    "end": {
-                        "line": node.end_point.row + 1,
-                        "column": node.end_point.column + 1,
-                        "byte": node.end_byte
-                    }
+                SimpleValue::object({
+                    let mut map = HashMap::new();
+                    map.insert("start".to_string(), SimpleValue::object({
+                        let mut start = HashMap::new();
+                        start.insert("line".to_string(), SimpleValue::integer((node.start_point.row + 1) as i64));
+                        start.insert("column".to_string(), SimpleValue::integer((node.start_point.column + 1) as i64));
+                        start.insert("byte".to_string(), SimpleValue::integer(node.start_byte as i64));
+                        start
+                    }));
+                    map.insert("end".to_string(), SimpleValue::object({
+                        let mut end = HashMap::new();
+                        end.insert("line".to_string(), SimpleValue::integer((node.end_point.row + 1) as i64));
+                        end.insert("column".to_string(), SimpleValue::integer((node.end_point.column + 1) as i64));
+                        end.insert("byte".to_string(), SimpleValue::integer(node.end_byte as i64));
+                        end
+                    }));
+                    map
                 })
             );
         }
@@ -744,14 +815,14 @@ impl JsonFolder {
         if node.has_error() {
             meta.properties.insert(
                 "hasError".to_string(),
-                Value::Bool(true)
+                SimpleValue::bool(true)
             );
         }
         
         if let Some(field_name) = node.field_name() {
             meta.properties.insert(
                 "fieldName".to_string(),
-                Value::String(field_name.to_string())
+                SimpleValue::string(field_name.to_string())
             );
         }
         
@@ -845,8 +916,49 @@ impl JsonFolder {
 use apidom_cst::TreeCursorSyntaxNode;
 
 impl Fold for JsonFolder {
-    // JsonFolder uses the default Fold implementation
-    // but adds CST conversion capabilities
+    fn create_meta_from_node(&mut self, node: &TreeCursorSyntaxNode) -> MetaElement {
+        let mut meta = MetaElement::default();
+        
+        if self.include_source_info {
+            meta.properties.insert(
+                "sourceLocation".to_string(),
+                SimpleValue::object({
+                    let mut map = HashMap::new();
+                    map.insert("start".to_string(), SimpleValue::object({
+                        let mut start = HashMap::new();
+                        start.insert("line".to_string(), SimpleValue::integer((node.start_point.row + 1) as i64));
+                        start.insert("column".to_string(), SimpleValue::integer((node.start_point.column + 1) as i64));
+                        start.insert("byte".to_string(), SimpleValue::integer(node.start_byte as i64));
+                        start
+                    }));
+                    map.insert("end".to_string(), SimpleValue::object({
+                        let mut end = HashMap::new();
+                        end.insert("line".to_string(), SimpleValue::integer((node.end_point.row + 1) as i64));
+                        end.insert("column".to_string(), SimpleValue::integer((node.end_point.column + 1) as i64));
+                        end.insert("byte".to_string(), SimpleValue::integer(node.end_byte as i64));
+                        end
+                    }));
+                    map
+                })
+            );
+        }
+        
+        if node.has_error() {
+            meta.properties.insert(
+                "hasError".to_string(),
+                SimpleValue::bool(true)
+            );
+        }
+        
+        if let Some(field_name) = node.field_name() {
+            meta.properties.insert(
+                "fieldName".to_string(),
+                SimpleValue::string(field_name.to_string())
+            );
+        }
+        
+        meta
+    }
 }
 
 impl FoldFromCst for JsonFolder {
@@ -970,7 +1082,7 @@ impl FoldFromCst for JsonFolder {
                     element: "malformed_pair".to_string(),
                     meta: self.create_meta_from_node(node),
                     attributes: AttributesElement::default(),
-                    content: Value::String(node.text().to_string()),
+                    content: SimpleValue::String(node.text().to_string()),
                 })
             )
         }
@@ -1150,7 +1262,7 @@ mod tests {
 
     #[test]
     fn test_json_object_conversion() {
-        let json = r#"{"name": "test", "value": 42}"#;
+        let json = r#"{"name": "John", "age": 30}"#;
         let cst = apidom_cst::CstParser::parse(json);
         let mut folder = JsonFolder::new();
         let ast = folder.fold_from_cst(&cst);
@@ -1176,11 +1288,45 @@ mod tests {
                 assert_eq!(key.content, "name");
             }
             if let Element::String(value) = first_member.value.as_ref() {
-                assert_eq!(value.content, "test");
+                assert_eq!(value.content, "John");
             }
         } else {
             panic!("Expected Object element");
         }
+    }
+
+    #[test]
+    fn test_fold_json_value() {
+        let mut folder = DefaultFolder;
+        let value = SimpleValue::array(vec![
+            SimpleValue::integer(1),
+            SimpleValue::string("test".to_string()),
+            SimpleValue::object({
+                let mut map = HashMap::new();
+                map.insert("key".to_string(), SimpleValue::bool(true));
+                map
+            })
+        ]);
+
+        let result = folder.fold_json_value(value);
+        assert!(matches!(result, SimpleValue::Array(_)));
+    }
+
+    #[test]
+    fn test_composite_folder_json_value() {
+        let mut composite = CompositeFolder::new(vec![
+            Box::new(DefaultFolder),
+            Box::new(DefaultFolder),
+        ]);
+
+        let value = SimpleValue::object({
+            let mut map = HashMap::new();
+            map.insert("test".to_string(), SimpleValue::integer(42));
+            map
+        });
+
+        let result = composite.fold_json_value(value);
+        assert!(matches!(result, SimpleValue::Object(_)));
     }
 }
 
@@ -1304,11 +1450,14 @@ mod cst_tests {
         let mut folder = JsonFolder::with_options(true, false);
         let ast = folder.fold_from_cst(&cst);
         
-        match ast {
-            Element::Object(obj) => {
-                assert!(obj.meta.properties.contains_key("sourceLocation"));
+        if let Element::Object(obj) = ast {
+            if let Some(location) = obj.meta.properties.get("sourceLocation") {
+                assert!(matches!(location, SimpleValue::Object(_)));
+            } else {
+                panic!("Expected sourceLocation in metadata");
             }
-            _ => panic!("Expected Object element"),
+        } else {
+            panic!("Expected Object element");
         }
     }
     

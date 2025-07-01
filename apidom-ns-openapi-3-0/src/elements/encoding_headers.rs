@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 
 /// OpenAPI Encoding Headers Element
 /// Specialized element for encoding headers which is a Map type rather than generic Object

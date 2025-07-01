@@ -1,6 +1,5 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use crate::elements::tag::TagElement;
-use serde_json::Value;
 
 /// Comprehensive OpenAPI Tag Builder
 /// 
@@ -35,7 +34,7 @@ pub fn build_and_decorate_tag<F>(
     mut folder: Option<&mut F>
 ) -> Option<TagElement>
 where
-    F: apidom_ast::fold::Fold,
+    F: Fold,
 {
     let obj = element.as_object()?;
     let mut tag = TagElement::new();
@@ -127,7 +126,7 @@ where
     tag.object.add_class("tag");
     tag.object.meta.properties.insert(
         "element-type".to_string(),
-        Value::String("tag".to_string())
+        SimpleValue::string("tag".to_string())
     );
     
     // Add spec path metadata (equivalent to TypeScript specPath)
@@ -153,7 +152,7 @@ fn convert_to_string_element(element: &Element) -> Option<StringElement> {
 fn add_fixed_field_metadata(obj: &mut ObjectElement, field_name: &str) {
     obj.meta.properties.insert(
         format!("fixed-field-{}", field_name),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -162,7 +161,7 @@ fn add_specification_extension_metadata(obj: &mut ObjectElement, field_name: &st
     obj.add_class("specification-extension");
     obj.meta.properties.insert(
         "specification-extension".to_string(),
-        Value::String(field_name.to_string())
+        SimpleValue::string(field_name.to_string())
     );
 }
 
@@ -170,7 +169,7 @@ fn add_specification_extension_metadata(obj: &mut ObjectElement, field_name: &st
 fn add_fallback_field_metadata(obj: &mut ObjectElement, field_name: &str) {
     obj.meta.properties.insert(
         format!("fallback-field-{}", field_name),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -179,11 +178,11 @@ fn add_reference_metadata(obj: &mut ObjectElement, ref_path: &str, element_type:
     obj.add_class("reference");
     obj.meta.properties.insert(
         "referenced-element".to_string(),
-        Value::String(element_type.to_string())
+        SimpleValue::string(element_type.to_string())
     );
     obj.meta.properties.insert(
         "reference-path".to_string(),
-        Value::String(ref_path.to_string())
+        SimpleValue::string(ref_path.to_string())
     );
 }
 
@@ -191,7 +190,7 @@ fn add_reference_metadata(obj: &mut ObjectElement, ref_path: &str, element_type:
 fn add_external_docs_metadata(obj: &mut ObjectElement) {
     obj.meta.properties.insert(
         "has-external-docs".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -199,10 +198,10 @@ fn add_external_docs_metadata(obj: &mut ObjectElement) {
 fn add_spec_path_metadata(obj: &mut ObjectElement) {
     obj.meta.properties.insert(
         "spec-path".to_string(),
-        Value::Array(vec![
-            Value::String("document".to_string()),
-            Value::String("objects".to_string()),
-            Value::String("Tag".to_string()),
+        SimpleValue::array(vec![
+            SimpleValue::string("document".to_string()),
+            SimpleValue::string("objects".to_string()),
+            SimpleValue::string("Tag".to_string()),
         ])
     );
 }
@@ -282,11 +281,11 @@ mod tests {
         
         // Verify spec path metadata
         assert!(tag.object.meta.properties.contains_key("spec-path"));
-        if let Some(Value::Array(spec_path)) = tag.object.meta.properties.get("spec-path") {
+        if let Some(SimpleValue::Array(spec_path)) = tag.object.meta.properties.get("spec-path") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("Tag".to_string()));
+            assert_eq!(spec_path[0], SimpleValue::string("document".to_string()));
+            assert_eq!(spec_path[1], SimpleValue::string("objects".to_string()));
+            assert_eq!(spec_path[2], SimpleValue::string("Tag".to_string()));
         }
     }
 
@@ -386,11 +385,11 @@ mod tests {
         }));
         assert_eq!(
             tag.object.meta.properties.get("referenced-element"),
-            Some(&Value::String("tag".to_string()))
+            Some(&SimpleValue::string("tag".to_string()))
         );
         assert_eq!(
             tag.object.meta.properties.get("reference-path"),
-            Some(&Value::String("#/components/tags/pets".to_string()))
+            Some(&SimpleValue::string("#/components/tags/pets".to_string()))
         );
     }
 
@@ -489,16 +488,16 @@ mod tests {
         }));
         assert_eq!(
             tag.object.meta.properties.get("element-type"),
-            Some(&Value::String("tag".to_string()))
+            Some(&SimpleValue::string("tag".to_string()))
         );
         
         // 6. Spec path metadata (equivalent to TypeScript specPath)
         assert!(tag.object.meta.properties.contains_key("spec-path"));
-        if let Some(Value::Array(spec_path)) = tag.object.meta.properties.get("spec-path") {
+        if let Some(SimpleValue::Array(spec_path)) = tag.object.meta.properties.get("spec-path") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("Tag".to_string()));
+            assert_eq!(spec_path[0], SimpleValue::string("document".to_string()));
+            assert_eq!(spec_path[1], SimpleValue::string("objects".to_string()));
+            assert_eq!(spec_path[2], SimpleValue::string("Tag".to_string()));
         }
         
         // 7. Required field validation

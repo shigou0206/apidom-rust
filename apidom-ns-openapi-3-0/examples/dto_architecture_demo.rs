@@ -27,7 +27,7 @@
 //! - 宏系统：为将来的代码生成做准备
 //! - 标准化模式：所有 DTO 遵循相同的转换模式
 //! - 类型安全：强类型转换，减少运行时错误
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use serde_json::json;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

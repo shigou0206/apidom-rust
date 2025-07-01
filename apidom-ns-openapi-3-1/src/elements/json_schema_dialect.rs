@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::{MetaElement, AttributesElement, StringElement, Element};
+use apidom_ast::{MetaElement, AttributesElement, StringElement, Element};
 
 /// Represents the `jsonSchemaDialect` string element in OpenAPI 3.1.
 #[derive(Debug, Clone)]

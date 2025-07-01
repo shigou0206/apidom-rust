@@ -13,11 +13,9 @@
  * - Version element class injection (api-version, version)
  */
 
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
+use apidom_ast::*;
 use crate::elements::info::InfoElement;
 use crate::builder::{build_contact, build_license};
-use serde_json::Value;
 
 /// Build a basic InfoElement from a generic Element
 pub fn build_info(element: &Element) -> Option<InfoElement> {
@@ -77,8 +75,8 @@ where
                 "version" => {
                     if let Some(mut string_elem) = convert_to_string_element(value) {
                         // Add version-specific classes (equivalent to VersionVisitor)
-                        string_elem.meta.properties.insert("api-version".to_string(), Value::Bool(true));
-                        string_elem.meta.properties.insert("version".to_string(), Value::Bool(true));
+                        string_elem.meta.properties.insert("api-version".to_string(), SimpleValue::bool(true));
+                        string_elem.meta.properties.insert("version".to_string(), SimpleValue::bool(true));
                         info.set_version(string_elem);
                         add_fixed_field_metadata(&mut info, "version");
                     } else {
@@ -173,52 +171,50 @@ fn convert_to_string_element(element: &Element) -> Option<StringElement> {
 
 /// Add metadata for fixed fields
 fn add_fixed_field_metadata(info: &mut InfoElement, field_name: &str) {
-    let key = format!("fixedField_{}", field_name);
-    info.object.meta.properties.insert(key, Value::Bool(true));
-    info.object.classes.content.push(Element::String(StringElement::new("fixed-field")));
+    let key = format!("fixed-field_{}", field_name);
+    info.object.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add metadata for references
 fn add_ref_metadata(info: &mut InfoElement, ref_path: &str) {
-    info.object.meta.properties.insert("referenced-element".to_string(), Value::String("info".to_string()));
-    info.object.meta.properties.insert("reference-path".to_string(), Value::String(ref_path.to_string()));
-    info.object.classes.content.push(Element::String(StringElement::new("reference-element")));
+    info.object.meta.properties.insert("referenced-element".to_string(), SimpleValue::String("info".to_string()));
+    info.object.meta.properties.insert("reference-path".to_string(), SimpleValue::String(ref_path.to_string()));
 }
 
 /// Add metadata for specification extensions
 fn add_specification_extension_metadata(info: &mut InfoElement, field_name: &str) {
     let key = format!("specificationExtension_{}", field_name);
-    info.object.meta.properties.insert(key, Value::Bool(true));
+    info.object.meta.properties.insert(key, SimpleValue::bool(true));
     info.object.classes.content.push(Element::String(StringElement::new("specification-extension")));
 }
 
 /// Add metadata for fallback handling
 fn add_fallback_metadata(info: &mut InfoElement, field_name: &str) {
     let key = format!("fallback_{}", field_name);
-    info.object.meta.properties.insert(key, Value::Bool(true));
+    info.object.meta.properties.insert(key, SimpleValue::bool(true));
     info.object.classes.content.push(Element::String(StringElement::new("fallback-field")));
 }
 
 /// Add metadata for validation errors
 fn add_validation_error_metadata(info: &mut InfoElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
-    info.object.meta.properties.insert(key, Value::String(error_msg.to_string()));
+    info.object.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));
 }
 
 /// Add overall processing metadata
 fn add_processing_metadata(info: &mut InfoElement) {
-    info.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
-    info.object.meta.properties.insert("fixedFieldsVisitor".to_string(), Value::Bool(true));
-    info.object.meta.properties.insert("fallbackVisitor".to_string(), Value::Bool(true));
-    info.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), Value::Bool(true));
+    info.object.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
+    info.object.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::bool(true));
+    info.object.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::bool(true));
+    info.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::bool(true));
 }
 
 /// Add spec path metadata
 fn add_spec_path_metadata(info: &mut InfoElement) {
-    info.object.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("document".to_string()),
-        Value::String("objects".to_string()),
-        Value::String("Info".to_string())
+    info.object.meta.properties.insert("specPath".to_string(), SimpleValue::array(vec![
+        SimpleValue::string("document".to_string()),
+        SimpleValue::string("objects".to_string()),
+        SimpleValue::string("Info".to_string())
     ]));
 }
 
@@ -235,14 +231,13 @@ fn validate_info(info: &mut InfoElement) {
     
     // If validation passes
     if info.title().is_some() && info.version().is_some() {
-        info.object.meta.properties.insert("validInfo".to_string(), Value::Bool(true));
+        info.object.meta.properties.insert("validInfo".to_string(), SimpleValue::bool(true));
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::DefaultFolder;
 
     #[test]
     fn test_basic_info_builder() {
@@ -286,10 +281,10 @@ mod tests {
         assert!(version.meta.properties.contains_key("version"));
         
         // Verify fixed field metadata
-        assert!(info.object.meta.properties.contains_key("fixedField_title"));
-        assert!(info.object.meta.properties.contains_key("fixedField_version"));
-        assert!(info.object.meta.properties.contains_key("fixedField_description"));
-        assert!(info.object.meta.properties.contains_key("fixedField_termsOfService"));
+        assert!(info.object.meta.properties.contains_key("fixed-field_title"));
+        assert!(info.object.meta.properties.contains_key("fixed-field_version"));
+        assert!(info.object.meta.properties.contains_key("fixed-field_description"));
+        assert!(info.object.meta.properties.contains_key("fixed-field_termsOfService"));
     }
 
     #[test]
@@ -361,8 +356,8 @@ mod tests {
         assert!(info.license().is_some());
         
         // Verify fixed field metadata for sub-elements
-        assert!(info.object.meta.properties.contains_key("fixedField_contact"));
-        assert!(info.object.meta.properties.contains_key("fixedField_license"));
+        assert!(info.object.meta.properties.contains_key("fixed-field_contact"));
+        assert!(info.object.meta.properties.contains_key("fixed-field_license"));
     }
 
     #[test]
@@ -385,11 +380,11 @@ mod tests {
         assert!(info.object.meta.properties.contains_key("referenced-element"));
         assert!(info.object.meta.properties.contains_key("reference-path"));
         
-        if let Some(Value::String(ref_elem)) = info.object.meta.properties.get("referenced-element") {
+        if let Some(SimpleValue::String(ref_elem)) = info.object.meta.properties.get("referenced-element") {
             assert_eq!(ref_elem, "info");
         }
         
-        if let Some(Value::String(ref_path)) = info.object.meta.properties.get("reference-path") {
+        if let Some(SimpleValue::String(ref_path)) = info.object.meta.properties.get("reference-path") {
             assert_eq!(ref_path, "#/components/info/PetStoreInfo");
         }
     }
@@ -470,7 +465,7 @@ mod tests {
         // Verify validation error metadata
         assert!(info.object.meta.properties.contains_key("validationError_info"));
         
-        if let Some(Value::String(error)) = info.object.meta.properties.get("validationError_info") {
+        if let Some(SimpleValue::String(error)) = info.object.meta.properties.get("validationError_info") {
             assert!(error.contains("Missing required field"));
         }
     }
@@ -508,11 +503,11 @@ mod tests {
         // Verify all TypeScript InfoVisitor features are present:
         
         // 1. Fixed fields processing
-        assert!(info.object.meta.properties.contains_key("fixedField_title"));
-        assert!(info.object.meta.properties.contains_key("fixedField_version"));
-        assert!(info.object.meta.properties.contains_key("fixedField_description"));
-        assert!(info.object.meta.properties.contains_key("fixedField_termsOfService"));
-        assert!(info.object.meta.properties.contains_key("fixedField_contact"));
+        assert!(info.object.meta.properties.contains_key("fixed-field_title"));
+        assert!(info.object.meta.properties.contains_key("fixed-field_version"));
+        assert!(info.object.meta.properties.contains_key("fixed-field_description"));
+        assert!(info.object.meta.properties.contains_key("fixed-field_termsOfService"));
+        assert!(info.object.meta.properties.contains_key("fixed-field_contact"));
         
         // 2. Version element classes (VersionVisitor equivalent)
         let version = info.version().unwrap();
@@ -527,11 +522,11 @@ mod tests {
         assert!(info.object.meta.properties.contains_key("fallback_customMetadata"));
         
         // 5. Spec path metadata
-        if let Some(Value::Array(spec_path)) = info.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(spec_path)) = info.object.meta.properties.get("specPath") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("Info".to_string()));
+            assert!(matches!(&spec_path[0], SimpleValue::String(s) if s == "document"));
+            assert!(matches!(&spec_path[1], SimpleValue::String(s) if s == "objects"));
+            assert!(matches!(&spec_path[2], SimpleValue::String(s) if s == "Info"));
         }
         
         // 6. Overall processing metadata

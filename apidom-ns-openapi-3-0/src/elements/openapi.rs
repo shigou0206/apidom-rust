@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 
 /// OpenAPI `openapi` 字段元素（表示规范版本）
 #[derive(Debug, Clone)]

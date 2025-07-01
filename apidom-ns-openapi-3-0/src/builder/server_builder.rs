@@ -1,6 +1,5 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use crate::elements::server::ServerElement;
-use serde_json::Value;
 
 /// Comprehensive OpenAPI Server Builder
 /// 
@@ -31,7 +30,7 @@ pub fn build_and_decorate_server<F>(
     mut folder: Option<&mut F>
 ) -> Option<ServerElement>
 where
-    F: apidom_ast::fold::Fold,
+    F: Fold,
 {
     let obj = element.as_object()?;
     let mut server = ServerElement::new();
@@ -46,13 +45,17 @@ where
                 // Fixed fields - direct mapping with type conversion
                 "url" => {
                     if let Some(converted) = convert_to_string_element(value) {
-                        let mut url_elem = converted.clone();
-                        url_elem.add_class("server-url");
-                        server.object.set(key_str, Element::String(url_elem));
+                        // Since StringElement doesn't support classes directly,
+                        // we add the class to the server element itself
+                        server.object.add_class("server-url");
+                        
+                        // Validate URL format before moving
+                        let is_valid = is_valid_url(&converted.content);
+                        
+                        server.object.set(key_str, Element::String(converted));
                         add_fixed_field_metadata(&mut server.object, key_str);
                         
-                        // Validate URL format
-                        if !is_valid_url(&converted.content) {
+                        if !is_valid {
                             add_validation_warning(&mut server.object, "url", "Invalid URL format");
                         }
                     }
@@ -126,7 +129,7 @@ where
     server.object.add_class("server");
     server.object.meta.properties.insert(
         "element-type".to_string(),
-        Value::String("server".to_string())
+        SimpleValue::string("server".to_string())
     );
     
     // Add spec path metadata
@@ -161,7 +164,7 @@ fn is_valid_url(url: &str) -> bool {
 fn add_fixed_field_metadata(obj: &mut ObjectElement, field_name: &str) {
     obj.meta.properties.insert(
         format!("fixed-field-{}", field_name),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -170,7 +173,7 @@ fn add_specification_extension_metadata(obj: &mut ObjectElement, field_name: &st
     obj.add_class("specification-extension");
     obj.meta.properties.insert(
         "specification-extension".to_string(),
-        Value::String(field_name.to_string())
+        SimpleValue::string(field_name.to_string())
     );
 }
 
@@ -178,7 +181,7 @@ fn add_specification_extension_metadata(obj: &mut ObjectElement, field_name: &st
 fn add_fallback_field_metadata(obj: &mut ObjectElement, field_name: &str) {
     obj.meta.properties.insert(
         format!("fallback-field-{}", field_name),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -187,11 +190,11 @@ fn add_reference_metadata(obj: &mut ObjectElement, ref_path: &str, element_type:
     obj.add_class("reference");
     obj.meta.properties.insert(
         "referenced-element".to_string(),
-        Value::String(element_type.to_string())
+        SimpleValue::string(element_type.to_string())
     );
     obj.meta.properties.insert(
         "reference-path".to_string(),
-        Value::String(ref_path.to_string())
+        SimpleValue::string(ref_path.to_string())
     );
 }
 
@@ -199,7 +202,7 @@ fn add_reference_metadata(obj: &mut ObjectElement, ref_path: &str, element_type:
 fn add_variable_metadata(obj: &mut ObjectElement, var_name: &str) {
     obj.meta.properties.insert(
         format!("server-variable-{}", var_name),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -207,10 +210,10 @@ fn add_variable_metadata(obj: &mut ObjectElement, var_name: &str) {
 fn add_spec_path_metadata(obj: &mut ObjectElement) {
     obj.meta.properties.insert(
         "spec-path".to_string(),
-        Value::Array(vec![
-            Value::String("document".to_string()),
-            Value::String("objects".to_string()),
-            Value::String("Server".to_string()),
+        SimpleValue::array(vec![
+            SimpleValue::string("document".to_string()),
+            SimpleValue::string("objects".to_string()),
+            SimpleValue::string("Server".to_string()),
         ])
     );
 }
@@ -218,7 +221,7 @@ fn add_spec_path_metadata(obj: &mut ObjectElement) {
 /// Add validation warning metadata
 fn add_validation_warning(obj: &mut ObjectElement, field: &str, message: &str) {
     let warning_key = format!("validation-warning-{}", field);
-    obj.meta.properties.insert(warning_key, Value::String(message.to_string()));
+    obj.meta.properties.insert(warning_key, SimpleValue::string(message.to_string()));
 }
 
 /// Validate server structure
@@ -375,11 +378,11 @@ mod tests {
         }));
         assert_eq!(
             server.object.meta.properties.get("referenced-element"),
-            Some(&Value::String("server".to_string()))
+            Some(&SimpleValue::string("server".to_string()))
         );
         assert_eq!(
             server.object.meta.properties.get("reference-path"),
-            Some(&Value::String("#/components/servers/production".to_string()))
+            Some(&SimpleValue::string("#/components/servers/production".to_string()))
         );
     }
 
@@ -456,7 +459,7 @@ mod tests {
         }));
         assert_eq!(
             server.object.meta.properties.get("referenced-element"),
-            Some(&Value::String("server".to_string()))
+            Some(&SimpleValue::string("server".to_string()))
         );
         
         // 6. Element classification
@@ -467,18 +470,18 @@ mod tests {
                 false
             }
         }));
-        assert_eq!(
+        assert!(matches!(
             server.object.meta.properties.get("element-type"),
-            Some(&Value::String("server".to_string()))
-        );
+            Some(SimpleValue::String(s)) if s == "server"
+        ));
         
         // 7. Spec path metadata
         assert!(server.object.meta.properties.contains_key("spec-path"));
-        if let Some(Value::Array(spec_path)) = server.object.meta.properties.get("spec-path") {
+        if let Some(SimpleValue::Array(spec_path)) = server.object.meta.properties.get("spec-path") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("Server".to_string()));
+            assert!(matches!(&spec_path[0], SimpleValue::String(s) if s == "document"));
+            assert!(matches!(&spec_path[1], SimpleValue::String(s) if s == "objects"));
+            assert!(matches!(&spec_path[2], SimpleValue::String(s) if s == "Server"));
         }
     }
 }

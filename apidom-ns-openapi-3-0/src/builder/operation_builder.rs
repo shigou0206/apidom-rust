@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use crate::elements::operation::{
     OperationElement, OperationParametersElement, OperationSecurityElement,
     OperationServersElement, OperationTagsElement, OperationCallbacksElement
@@ -10,7 +10,6 @@ use crate::elements::callback::CallbackElement;
 use crate::elements::server::ServerElement;
 use crate::elements::parameter::ParameterElement;
 use crate::elements::security_requirement::SecurityRequirementElement;
-use serde_json::Value;
 
 /// Enhanced Operation builder with TypeScript CallbacksVisitor equivalence
 /// Provides structured field processing, metadata injection, and validation
@@ -307,59 +306,52 @@ fn inject_operation_metadata(obj: &mut ObjectElement, source: &ObjectElement) {
     // Add element type metadata
     obj.meta.properties.insert(
         "element-type".to_string(),
-        Value::String("operation".to_string())
+        SimpleValue::string("operation".to_string())
     );
     
     // Add field count metadata
     obj.meta.properties.insert(
         "field-count".to_string(),
-        Value::from(source.content.len())
+        SimpleValue::from(source.content.len() as i64)
     );
     
     // Add validation metadata
     let has_responses = source.has_key("responses");
     obj.meta.properties.insert(
         "has-required-responses".to_string(),
-        Value::Bool(has_responses)
+        SimpleValue::bool(has_responses)
     );
     
     if !has_responses {
         obj.meta.properties.insert(
             "validation-error".to_string(),
-            Value::String("Missing required 'responses' field".to_string())
+            SimpleValue::string("Missing required 'responses' field".to_string())
         );
     }
     
     // Add processing timestamp
     obj.meta.properties.insert(
         "processed-at".to_string(),
-        Value::String(chrono::Utc::now().to_rfc3339())
+        SimpleValue::string(chrono::Utc::now().to_rfc3339())
     );
 }
 
 /// Add metadata for fixed fields
 fn add_fixed_field_metadata(obj: &mut ObjectElement, field_name: &str) {
-    obj.meta.properties.insert(
-        format!("fixed-field-{}", field_name),
-        Value::Bool(true)
-    );
+    let key = format!("fixed-field_{}", field_name);
+    obj.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add metadata for specification extensions
 fn add_specification_extension_metadata(obj: &mut ObjectElement, field_name: &str) {
-    obj.add_class("specification-extension");
-    obj.meta.properties.insert(
-        "specification-extension".to_string(),
-        Value::String(field_name.to_string())
-    );
+    let key = format!("specification-extension_{}", field_name);
+    obj.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add metadata for fallback fields
 fn add_fallback_field_metadata(obj: &mut ObjectElement, field_name: &str) {
-    obj.meta.properties.insert(
-        format!("fallback-field-{}", field_name),
-        Value::Bool(true)
-    );
+    let key = format!("fallback-{}", field_name);
+    obj.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
 /// Add metadata for $ref references
@@ -367,11 +359,11 @@ fn add_reference_metadata(obj: &mut ObjectElement, ref_path: &str, element_type:
     obj.add_class("reference");
     obj.meta.properties.insert(
         "referenced-element".to_string(),
-        Value::String(element_type.to_string())
+        SimpleValue::string(element_type.to_string())
     );
     obj.meta.properties.insert(
         "reference-path".to_string(),
-        Value::String(ref_path.to_string())
+        SimpleValue::string(ref_path.to_string())
     );
 }
 
@@ -639,25 +631,25 @@ mod tests {
         let operation = build_and_decorate_operation(obj).unwrap();
 
         // Check comprehensive metadata
-        assert_eq!(
+        assert!(matches!(
             operation.object.meta.properties.get("element-type"),
-            Some(&Value::String("operation".to_string()))
-        );
+            Some(SimpleValue::String(s)) if s == "operation"
+        ));
         assert!(operation.object.meta.properties.contains_key("field-count"));
         assert_eq!(
             operation.object.meta.properties.get("has-required-responses"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         assert!(operation.object.meta.properties.contains_key("processed-at"));
 
         // Check fixed field metadata
         assert_eq!(
             operation.object.meta.properties.get("fixed-field-summary"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         assert_eq!(
             operation.object.meta.properties.get("fixed-field-responses"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
     }
 
@@ -672,7 +664,7 @@ mod tests {
         // Check validation error for missing responses
         assert_eq!(
             operation.object.meta.properties.get("has-required-responses"),
-            Some(&Value::Bool(false))
+            Some(&SimpleValue::bool(false))
         );
         assert!(operation.object.meta.properties.contains_key("validation-error"));
     }
@@ -698,11 +690,11 @@ mod tests {
         // Check fallback field metadata
         assert_eq!(
             operation.object.meta.properties.get("fallback-field-unknownField"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         assert_eq!(
             operation.object.meta.properties.get("fallback-field-anotherUnknown"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
     }
 

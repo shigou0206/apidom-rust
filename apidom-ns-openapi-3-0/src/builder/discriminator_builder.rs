@@ -48,9 +48,7 @@
 //! - ✅ Reference handling
 //! - ❌ Specification extensions (disabled by design, matching TypeScript)
 
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
-use serde_json::Value;
+use apidom_ast::*;
 use crate::elements::discriminator::DiscriminatorElement;
 use crate::builder::discriminator_mapping_builder::build_and_decorate_discriminator_mapping;
 
@@ -147,52 +145,52 @@ fn convert_to_string_element(element: &Element) -> Option<StringElement> {
 }
 
 /// Add metadata for fixed fields
-fn add_fixed_field_metadata(discriminator: &mut DiscriminatorElement, field_name: &str) {
-    let key = format!("fixedField_{}", field_name);
-    discriminator.object.meta.properties.insert(key, Value::Bool(true));
+fn add_fixed_field_metadata(discriminator: &mut DiscriminatorElement, _field_name: &str) {
+    let key = format!("fixedField_{}", _field_name);
+    discriminator.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
 /// Add metadata for type conversions
 fn add_type_conversion_metadata(discriminator: &mut DiscriminatorElement, field_name: &str, expected_type: &str) {
     let key = format!("typeConversion_{}", field_name);
-    discriminator.object.meta.properties.insert(key, Value::String(expected_type.to_string()));
+    discriminator.object.meta.properties.insert(key, SimpleValue::string(expected_type.to_string()));
 }
 
 /// Add metadata for mapping processing
 fn add_mapping_metadata(discriminator: &mut DiscriminatorElement) {
-    discriminator.object.meta.properties.insert("mappingProcessed".to_string(), Value::Bool(true));
+    discriminator.object.meta.properties.insert("mappingProcessed".to_string(), SimpleValue::bool(true));
 }
 
 /// Add metadata for references
 fn add_ref_metadata(discriminator: &mut DiscriminatorElement, field_name: &str) {
     let key = format!("ref_{}", field_name);
-    discriminator.object.meta.properties.insert(key, Value::Bool(true));
-    discriminator.object.meta.properties.insert("referenced-element".to_string(), Value::String("discriminator".to_string()));
+    discriminator.object.meta.properties.insert(key, SimpleValue::bool(true));
+    discriminator.object.meta.properties.insert("referenced-element".to_string(), SimpleValue::string("discriminator".to_string()));
 }
 
 /// Add metadata for fallback handling
 fn add_fallback_metadata(discriminator: &mut DiscriminatorElement, field_name: &str) {
     let key = format!("fallback_{}", field_name);
-    discriminator.object.meta.properties.insert(key, Value::Bool(true));
+    discriminator.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
 /// Add validation error metadata
 fn add_validation_error_metadata(discriminator: &mut DiscriminatorElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
-    discriminator.object.meta.properties.insert(key, Value::String(error_msg.to_string()));
+    discriminator.object.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));
 }
 
 /// Add overall processing metadata
 fn add_processing_metadata(discriminator: &mut DiscriminatorElement) {
-    discriminator.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
+    discriminator.object.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
 }
 
 /// Add spec path metadata
 fn add_spec_path_metadata(discriminator: &mut DiscriminatorElement) {
-    discriminator.object.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("document".to_string()),
-        Value::String("objects".to_string()),
-        Value::String("Discriminator".to_string())
+    discriminator.object.meta.properties.insert("specPath".to_string(), SimpleValue::array(vec![
+        SimpleValue::string("document".to_string()),
+        SimpleValue::string("objects".to_string()),
+        SimpleValue::string("Discriminator".to_string())
     ]));
 }
 
@@ -207,7 +205,7 @@ fn validate_discriminator(discriminator: &mut DiscriminatorElement) {
             "Discriminator must have a propertyName field"
         );
     } else {
-        discriminator.object.meta.properties.insert("validDiscriminator".to_string(), Value::Bool(true));
+        discriminator.object.meta.properties.insert("validDiscriminator".to_string(), SimpleValue::bool(true));
     }
     
     // Validate mapping if present
@@ -219,7 +217,7 @@ fn validate_discriminator(discriminator: &mut DiscriminatorElement) {
                 "Mapping should not be empty if present"
             );
         } else {
-            discriminator.object.meta.properties.insert("validMapping".to_string(), Value::Bool(true));
+            discriminator.object.meta.properties.insert("validMapping".to_string(), SimpleValue::bool(true));
         }
     }
 }
@@ -227,7 +225,8 @@ fn validate_discriminator(discriminator: &mut DiscriminatorElement) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::DefaultFolder;
+    use apidom_ast::DefaultFolder;
+    use apidom_ast::{Element, ObjectElement, StringElement, NumberElement, MetaElement, AttributesElement};
 
     #[test]
     fn test_basic_discriminator_builder() {

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use serde_json::Value;
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 
 /// Comprehensive reference resolution system for OpenAPI specifications
 /// Supports:
@@ -133,6 +133,8 @@ pub enum ResolverError {
     JsonPointerError(String),
     #[error("Custom resolver error: {0}")]
     CustomError(String),
+    #[error("Invalid JSON number")]
+    InvalidJsonNumber,
 }
 
 impl ReferenceResolver {
@@ -473,25 +475,25 @@ fn json_to_element(json: &Value) -> Result<Element, ResolverError> {
         Value::Null => Ok(Element::Null(NullElement::default())),
         Value::Bool(b) => Ok(Element::Boolean(BooleanElement::new(*b))),
         Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
+            if n.is_i64() {
                 Ok(Element::Number(NumberElement {
                     element: "number".to_string(),
                     meta: MetaElement::default(),
                     attributes: AttributesElement::default(),
-                    content: i as f64,
+                    content: n.as_i64().unwrap() as f64,
                 }))
-            } else if let Some(f) = n.as_f64() {
+            } else if n.is_f64() {
                 Ok(Element::Number(NumberElement {
                     element: "number".to_string(),
                     meta: MetaElement::default(),
                     attributes: AttributesElement::default(),
-                    content: f,
+                    content: n.as_f64().unwrap(),
                 }))
             } else {
-                Err(ResolverError::JsonError("Invalid number".to_string()))
+                Err(ResolverError::InvalidJsonNumber)
             }
         }
-        Value::String(s) => Ok(Element::String(StringElement::new(s))),
+        Value::String(s) => Ok(Element::String(StringElement::new(&s.clone()))),
         Value::Array(arr) => {
             let mut array = ArrayElement::new_empty();
             for item in arr {
@@ -503,7 +505,7 @@ fn json_to_element(json: &Value) -> Result<Element, ResolverError> {
             let mut object = ObjectElement::new();
             for (key, value) in obj {
                 let member = MemberElement::new(
-                    Element::String(StringElement::new(key)),
+                    Element::String(StringElement::new(&key.clone())),
                     json_to_element(value)?
                 );
                 object.content.push(member);

@@ -11,10 +11,8 @@
  * - Recursive folding support
  */
 
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
+use apidom_ast::*;
 use crate::elements::license::LicenseElement;
-use serde_json::Value;
 
 /// Build a basic LicenseElement from a generic Element
 pub fn build_license(element: &Element) -> Option<LicenseElement> {
@@ -129,52 +127,50 @@ fn convert_to_string_element(element: &Element) -> Option<StringElement> {
 
 /// Add metadata for fixed fields
 fn add_fixed_field_metadata(license: &mut LicenseElement, field_name: &str) {
-    let key = format!("fixedField_{}", field_name);
-    license.object.meta.properties.insert(key, Value::Bool(true));
-    license.object.classes.content.push(Element::String(StringElement::new("fixed-field")));
+    let key = format!("fixed-field_{}", field_name);
+    license.object.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add metadata for references
 fn add_ref_metadata(license: &mut LicenseElement, ref_path: &str) {
-    license.object.meta.properties.insert("referenced-element".to_string(), Value::String("license".to_string()));
-    license.object.meta.properties.insert("reference-path".to_string(), Value::String(ref_path.to_string()));
-    license.object.classes.content.push(Element::String(StringElement::new("reference-element")));
+    license.object.meta.properties.insert("referenced-element".to_string(), SimpleValue::String("license".to_string()));
+    license.object.meta.properties.insert("reference-path".to_string(), SimpleValue::String(ref_path.to_string()));
 }
 
 /// Add metadata for specification extensions
 fn add_specification_extension_metadata(license: &mut LicenseElement, field_name: &str) {
     let key = format!("specificationExtension_{}", field_name);
-    license.object.meta.properties.insert(key, Value::Bool(true));
+    license.object.meta.properties.insert(key, SimpleValue::bool(true));
     license.object.classes.content.push(Element::String(StringElement::new("specification-extension")));
 }
 
 /// Add metadata for fallback handling
 fn add_fallback_metadata(license: &mut LicenseElement, field_name: &str) {
     let key = format!("fallback_{}", field_name);
-    license.object.meta.properties.insert(key, Value::Bool(true));
+    license.object.meta.properties.insert(key, SimpleValue::bool(true));
     license.object.classes.content.push(Element::String(StringElement::new("fallback-field")));
 }
 
 /// Add metadata for validation errors
 fn add_validation_error_metadata(license: &mut LicenseElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
-    license.object.meta.properties.insert(key, Value::String(error_msg.to_string()));
+    license.object.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));
 }
 
 /// Add overall processing metadata
 fn add_processing_metadata(license: &mut LicenseElement) {
-    license.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
-    license.object.meta.properties.insert("fixedFieldsVisitor".to_string(), Value::Bool(true));
-    license.object.meta.properties.insert("fallbackVisitor".to_string(), Value::Bool(true));
-    license.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), Value::Bool(true));
+    license.object.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
+    license.object.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::bool(true));
+    license.object.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::bool(true));
+    license.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::bool(true));
 }
 
 /// Add spec path metadata
 fn add_spec_path_metadata(license: &mut LicenseElement) {
-    license.object.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("document".to_string()),
-        Value::String("objects".to_string()),
-        Value::String("License".to_string())
+    license.object.meta.properties.insert("specPath".to_string(), SimpleValue::array(vec![
+        SimpleValue::string("document".to_string()),
+        SimpleValue::string("objects".to_string()),
+        SimpleValue::string("License".to_string())
     ]));
 }
 
@@ -192,14 +188,13 @@ fn validate_license(license: &mut LicenseElement) {
     
     // If validation passes
     if license.name().is_some() {
-        license.object.meta.properties.insert("validLicense".to_string(), Value::Bool(true));
+        license.object.meta.properties.insert("validLicense".to_string(), SimpleValue::bool(true));
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::DefaultFolder;
 
     #[test]
     fn test_basic_license_builder() {
@@ -232,8 +227,8 @@ mod tests {
         assert_eq!(license.url().unwrap().content, "https://www.apache.org/licenses/LICENSE-2.0.html");
         
         // Verify fixed field metadata
-        assert!(license.object.meta.properties.contains_key("fixedField_name"));
-        assert!(license.object.meta.properties.contains_key("fixedField_url"));
+        assert!(license.object.meta.properties.contains_key("fixed-field_name"));
+        assert!(license.object.meta.properties.contains_key("fixed-field_url"));
         
         // Verify processing metadata
         assert!(license.object.meta.properties.contains_key("processed"));
@@ -241,11 +236,11 @@ mod tests {
         assert!(license.object.meta.properties.contains_key("canSupportSpecificationExtensions"));
         
         // Verify spec path metadata
-        if let Some(Value::Array(spec_path)) = license.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(spec_path)) = license.object.meta.properties.get("specPath") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("License".to_string()));
+            assert!(matches!(&spec_path[0], SimpleValue::String(s) if s == "document"));
+            assert!(matches!(&spec_path[1], SimpleValue::String(s) if s == "objects"));
+            assert!(matches!(&spec_path[2], SimpleValue::String(s) if s == "License"));
         }
     }
 
@@ -307,11 +302,11 @@ mod tests {
         assert!(license.object.meta.properties.contains_key("referenced-element"));
         assert!(license.object.meta.properties.contains_key("reference-path"));
         
-        if let Some(Value::String(ref_elem)) = license.object.meta.properties.get("referenced-element") {
+        if let Some(SimpleValue::String(ref_elem)) = license.object.meta.properties.get("referenced-element") {
             assert_eq!(ref_elem, "license");
         }
         
-        if let Some(Value::String(ref_path)) = license.object.meta.properties.get("reference-path") {
+        if let Some(SimpleValue::String(ref_path)) = license.object.meta.properties.get("reference-path") {
             assert_eq!(ref_path, "#/components/licenses/MIT");
         }
     }
@@ -390,7 +385,7 @@ mod tests {
         // Verify URL validation error
         assert!(license.object.meta.properties.contains_key("validationError_url"));
         
-        if let Some(Value::String(error)) = license.object.meta.properties.get("validationError_url") {
+        if let Some(SimpleValue::String(error)) = license.object.meta.properties.get("validationError_url") {
             assert_eq!(error, "Invalid URL format");
         }
     }
@@ -410,7 +405,7 @@ mod tests {
         // Verify validation error metadata
         assert!(license.object.meta.properties.contains_key("validationError_license"));
         
-        if let Some(Value::String(error)) = license.object.meta.properties.get("validationError_license") {
+        if let Some(SimpleValue::String(error)) = license.object.meta.properties.get("validationError_license") {
             assert!(error.contains("Missing required field"));
         }
     }
@@ -438,8 +433,8 @@ mod tests {
         // Verify all TypeScript LicenseVisitor features are present:
         
         // 1. Fixed fields processing
-        assert!(license.object.meta.properties.contains_key("fixedField_name"));
-        assert!(license.object.meta.properties.contains_key("fixedField_url"));
+        assert!(license.object.meta.properties.contains_key("fixed-field_name"));
+        assert!(license.object.meta.properties.contains_key("fixed-field_url"));
         
         // 2. Specification extensions support
         assert!(license.object.meta.properties.contains_key("specificationExtension_x-license-id"));
@@ -449,11 +444,11 @@ mod tests {
         assert!(license.object.meta.properties.contains_key("fallback_customField"));
         
         // 4. Spec path metadata
-        if let Some(Value::Array(spec_path)) = license.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(spec_path)) = license.object.meta.properties.get("specPath") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("License".to_string()));
+            assert!(matches!(&spec_path[0], SimpleValue::String(s) if s == "document"));
+            assert!(matches!(&spec_path[1], SimpleValue::String(s) if s == "objects"));
+            assert!(matches!(&spec_path[2], SimpleValue::String(s) if s == "License"));
         }
         
         // 5. Overall processing metadata

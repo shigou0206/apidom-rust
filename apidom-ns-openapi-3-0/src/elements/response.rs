@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 
 /// OpenAPI Response Content Element
 /// Specialized element for response content which is a Map type for media types

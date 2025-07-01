@@ -1,6 +1,4 @@
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
-use serde_json::Value;
+use apidom_ast::*;
 use crate::elements::components::ComponentsElement;
 
 /// Basic components builder (fallback)
@@ -252,7 +250,7 @@ fn inject_reference_metadata(element: &mut Element, referenced_type: &str) {
         // Add referenced-element metadata
         obj.meta.properties.insert(
             "referenced-element".to_string(),
-            Value::String(referenced_type.to_string())
+            SimpleValue::string(referenced_type.to_string())
         );
         
         // Extract and store the reference path
@@ -262,7 +260,7 @@ fn inject_reference_metadata(element: &mut Element, referenced_type: &str) {
                     if let Element::String(ref_value) = &*member.value {
                         obj.meta.properties.insert(
                             "reference-path".to_string(),
-                            Value::String(ref_value.content.clone())
+                            SimpleValue::string(ref_value.content.clone())
                         );
                     }
                 }
@@ -274,13 +272,13 @@ fn inject_reference_metadata(element: &mut Element, referenced_type: &str) {
 /// Inject SpecPath metadata (equivalent to TypeScript specPath)
 fn inject_spec_path_metadata(element: &mut Element, spec_path: &[&str]) {
     if let Element::Object(obj) = element {
-        let path_values: Vec<Value> = spec_path.iter()
-            .map(|s| Value::String(s.to_string()))
+        let path_values: Vec<SimpleValue> = spec_path.iter()
+            .map(|s| SimpleValue::string(s.to_string()))
             .collect();
         
         obj.meta.properties.insert(
             "spec-path".to_string(),
-            Value::Array(path_values)
+            SimpleValue::array(path_values)
         );
     }
 }
@@ -290,14 +288,14 @@ fn inject_element_type_metadata(element: &mut Element, element_type: &str) {
     if let Element::Object(obj) = element {
         obj.meta.properties.insert(
             "element-type".to_string(),
-            Value::String(element_type.to_string())
+            SimpleValue::string(element_type.to_string())
         );
         
         // Add filter metadata (equivalent to TypeScript filter predicates)
         let filter_key = format!("is-{}-element", element_type);
         obj.meta.properties.insert(
             filter_key,
-            Value::Bool(true)
+            SimpleValue::bool(true)
         );
     }
 }
@@ -321,18 +319,18 @@ fn inject_component_key_metadata(element: &mut Element, key: &str, component_typ
         
         obj.meta.properties.insert(
             meta_key.to_string(),
-            Value::String(key.to_string())
+            SimpleValue::string(key.to_string())
         );
         
         // Also add generic component-name for consistency
         obj.meta.properties.insert(
             "component-name".to_string(),
-            Value::String(key.to_string())
+            SimpleValue::string(key.to_string())
         );
         
         obj.meta.properties.insert(
             "component-type".to_string(),
-            Value::String(component_type.to_string())
+            SimpleValue::string(component_type.to_string())
         );
     }
 }
@@ -365,14 +363,14 @@ fn inject_response_status_codes(field_element: &mut Element) {
                     if let Element::Object(response_obj) = &mut *field_member.value {
                         response_obj.meta.properties.insert(
                             "http-status-code".to_string(),
-                            Value::String(status_code.clone())
+                            SimpleValue::string(status_code.clone())
                         );
                         
                         // Add status code category
                         let category = get_status_code_category(status_code);
                         response_obj.meta.properties.insert(
                             "status-code-category".to_string(),
-                            Value::String(category.to_string())
+                            SimpleValue::string(category.to_string())
                         );
                     }
                 }
@@ -391,14 +389,14 @@ fn inject_header_names(field_element: &mut Element) {
                 if let Element::Object(header_obj) = &mut *field_member.value {
                     header_obj.meta.properties.insert(
                         "header-name".to_string(),
-                        Value::String(header_name.clone())
+                        SimpleValue::string(header_name.clone())
                     );
                     
                     // Add header type classification
                     let header_type = classify_header_type(header_name);
                     header_obj.meta.properties.insert(
                         "header-type".to_string(),
-                        Value::String(header_type.to_string())
+                        SimpleValue::string(header_type.to_string())
                     );
                 }
             }
@@ -416,7 +414,7 @@ fn inject_parameter_names(field_element: &mut Element) {
                 if let Element::Object(param_obj) = &mut *field_member.value {
                     param_obj.meta.properties.insert(
                         "parameter-name".to_string(),
-                        Value::String(param_name.clone())
+                        SimpleValue::string(param_name.clone())
                     );
                 }
             }
@@ -434,7 +432,7 @@ fn inject_example_names(field_element: &mut Element) {
                 if let Element::Object(example_obj) = &mut *field_member.value {
                     example_obj.meta.properties.insert(
                         "example-name".to_string(),
-                        Value::String(example_name.clone())
+                        SimpleValue::string(example_name.clone())
                     );
                 }
             }
@@ -452,7 +450,7 @@ fn inject_link_names(field_element: &mut Element) {
                 if let Element::Object(link_obj) = &mut *field_member.value {
                     link_obj.meta.properties.insert(
                         "link-name".to_string(),
-                        Value::String(link_name.clone())
+                        SimpleValue::string(link_name.clone())
                     );
                 }
             }

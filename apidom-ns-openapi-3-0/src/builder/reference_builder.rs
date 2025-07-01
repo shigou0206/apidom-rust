@@ -1,6 +1,6 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use crate::elements::reference::ReferenceElement;
-use serde_json::Value;
+use std::collections::HashMap;
 
 /// Enhanced Reference builder with TypeScript ReferenceVisitor equivalence
 /// Provides fixed field processing, $ref validation, class injection, and metadata handling
@@ -71,7 +71,7 @@ fn process_ref_field(reference: &mut ReferenceElement, source: &ObjectElement) {
             let mut enhanced_ref = ref_str.clone();
             enhanced_ref.meta.properties.insert(
                 "class".to_string(),
-                Value::String("reference-value".to_string())
+                SimpleValue::string("reference-value".to_string())
             );
             reference.object.set("$ref", Element::String(enhanced_ref));
             
@@ -104,7 +104,7 @@ fn validate_no_spec_extensions(reference: &mut ReferenceElement, source: &Object
         // Add validation warning for specification extensions
         reference.object.meta.properties.insert(
             "specification-extensions-not-supported".to_string(),
-            Value::Array(spec_extensions.into_iter().map(Value::String).collect())
+            SimpleValue::array(spec_extensions.into_iter().map(SimpleValue::string).collect())
         );
         
         // Add warning class
@@ -135,41 +135,41 @@ fn inject_reference_metadata(obj: &mut ObjectElement, source: &ObjectElement) {
     // Add element type metadata
     obj.meta.properties.insert(
         "element-type".to_string(),
-        Value::String("reference".to_string())
+        SimpleValue::string("reference".to_string())
     );
     
-    // Add spec path metadata (equivalent to TypeScript specPath)
+    // Add spec path metadata
     obj.meta.properties.insert(
         "spec-path".to_string(),
-        Value::Array(vec![
-            Value::String("document".to_string()),
-            Value::String("objects".to_string()),
-            Value::String("Reference".to_string())
+        SimpleValue::array(vec![
+            SimpleValue::string("document".to_string()),
+            SimpleValue::string("objects".to_string()),
+            SimpleValue::string("Reference".to_string())
         ])
     );
     
     // Add field count metadata
     obj.meta.properties.insert(
         "field-count".to_string(),
-        Value::from(source.content.len())
+        SimpleValue::integer(source.content.len() as i64)
     );
     
     // Add specification extensions support flag
     obj.meta.properties.insert(
         "can-support-specification-extensions".to_string(),
-        Value::Bool(false)
+        SimpleValue::bool(false)
     );
     
     // Add processing timestamp
     obj.meta.properties.insert(
         "processed-at".to_string(),
-        Value::String(chrono::Utc::now().to_rfc3339())
+        SimpleValue::string(chrono::Utc::now().to_rfc3339())
     );
     
     // Add visitor information
     obj.meta.properties.insert(
         "processed-by".to_string(),
-        Value::String("ReferenceVisitor".to_string())
+        SimpleValue::string("ReferenceVisitor".to_string())
     );
 }
 
@@ -177,32 +177,30 @@ fn inject_reference_metadata(obj: &mut ObjectElement, source: &ObjectElement) {
 fn add_fixed_field_metadata(obj: &mut ObjectElement, field_name: &str) {
     obj.meta.properties.insert(
         format!("fixed-field-{}", field_name),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
 /// Add metadata for $ref validation
 fn add_ref_validation_metadata(obj: &mut ObjectElement, ref_value: &str, is_valid: bool) {
+    let mut validation_map = HashMap::new();
+    validation_map.insert("is-valid".to_string(), SimpleValue::bool(is_valid));
+    validation_map.insert("ref-value".to_string(), SimpleValue::string(ref_value.to_string()));
+    validation_map.insert("is-string-element".to_string(), SimpleValue::bool(is_valid));
+
     obj.meta.properties.insert(
         "ref-validation".to_string(),
-        Value::Object({
-            let mut map = serde_json::Map::new();
-            map.insert("is-valid".to_string(), Value::Bool(is_valid));
-            map.insert("ref-value".to_string(), Value::String(ref_value.to_string()));
-            map.insert("is-string-element".to_string(), Value::Bool(is_valid));
-            map
-        })
+        SimpleValue::object(validation_map)
     );
     
     if is_valid {
-        // Add reference target metadata
         obj.meta.properties.insert(
             "referenced-element".to_string(),
-            Value::String("reference".to_string())
+            SimpleValue::string("reference".to_string())
         );
         obj.meta.properties.insert(
             "reference-path".to_string(),
-            Value::String(ref_value.to_string())
+            SimpleValue::string(ref_value.to_string())
         );
     }
 }
@@ -211,7 +209,7 @@ fn add_ref_validation_metadata(obj: &mut ObjectElement, ref_value: &str, is_vali
 fn add_fallback_field_metadata(obj: &mut ObjectElement, field_name: &str) {
     obj.meta.properties.insert(
         format!("fallback-field-{}", field_name),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -301,7 +299,7 @@ mod tests {
             // StringElement uses metadata instead of classes
             assert_eq!(
                 ref_elem.meta.properties.get("class"),
-                Some(&Value::String("reference-value".to_string()))
+                Some(&SimpleValue::string("reference-value".to_string()))
             );
         } else {
             panic!("$ref should be a StringElement with reference-value class in metadata");
@@ -333,15 +331,15 @@ mod tests {
         // Check fixed field metadata
         assert_eq!(
             reference.object.meta.properties.get("fixed-field-$ref"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         assert_eq!(
             reference.object.meta.properties.get("fixed-field-summary"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         assert_eq!(
             reference.object.meta.properties.get("fixed-field-description"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
     }
 
@@ -355,9 +353,9 @@ mod tests {
 
         // Check validation metadata for invalid $ref
         assert!(reference.object.meta.properties.contains_key("ref-validation"));
-        if let Some(Value::Object(ref_validation)) = reference.object.meta.properties.get("ref-validation") {
-            assert_eq!(ref_validation.get("is-valid"), Some(&Value::Bool(false)));
-            assert_eq!(ref_validation.get("is-string-element"), Some(&Value::Bool(false)));
+        if let Some(SimpleValue::Object(ref_validation)) = reference.object.meta.properties.get("ref-validation") {
+            assert!(matches!(ref_validation.get("is-valid"), Some(&SimpleValue::Bool(false))));
+            assert!(matches!(ref_validation.get("is-string-element"), Some(&SimpleValue::Bool(false))));
         }
 
         // Should NOT have reference-element class for invalid $ref
@@ -379,10 +377,10 @@ mod tests {
 
         // Check specification extensions warning
         assert!(reference.object.meta.properties.contains_key("specification-extensions-not-supported"));
-        if let Some(Value::Array(extensions)) = reference.object.meta.properties.get("specification-extensions-not-supported") {
+        if let Some(SimpleValue::Array(extensions)) = reference.object.meta.properties.get("specification-extensions-not-supported") {
             assert_eq!(extensions.len(), 2);
-            assert!(extensions.contains(&Value::String("x-custom-field".to_string())));
-            assert!(extensions.contains(&Value::String("x-another-extension".to_string())));
+            assert!(extensions.iter().any(|e| if let SimpleValue::String(s) = e { s.as_str() == "x-custom-field" } else { false }));
+            assert!(extensions.iter().any(|e| if let SimpleValue::String(s) = e { s.as_str() == "x-another-extension" } else { false }));
         }
 
         // Check warning class
@@ -409,11 +407,11 @@ mod tests {
         // Check fallback field metadata
         assert_eq!(
             reference.object.meta.properties.get("fallback-field-unknownField"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         assert_eq!(
             reference.object.meta.properties.get("fallback-field-anotherUnknown"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
     }
 
@@ -429,43 +427,43 @@ mod tests {
         // Check comprehensive metadata
         assert_eq!(
             reference.object.meta.properties.get("element-type"),
-            Some(&Value::String("reference".to_string()))
+            Some(&SimpleValue::string("reference".to_string()))
         );
         
         assert_eq!(
             reference.object.meta.properties.get("can-support-specification-extensions"),
-            Some(&Value::Bool(false))
+            Some(&SimpleValue::bool(false))
         );
         
         assert_eq!(
             reference.object.meta.properties.get("processed-by"),
-            Some(&Value::String("ReferenceVisitor".to_string()))
+            Some(&SimpleValue::string("ReferenceVisitor".to_string()))
         );
         
         // Check spec path
-        if let Some(Value::Array(spec_path)) = reference.object.meta.properties.get("spec-path") {
+        if let Some(SimpleValue::Array(spec_path)) = reference.object.meta.properties.get("spec-path") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("Reference".to_string()));
+            assert!(matches!(&spec_path[0], SimpleValue::String(s) if s == "document"));
+            assert!(matches!(&spec_path[1], SimpleValue::String(s) if s == "objects"));
+            assert!(matches!(&spec_path[2], SimpleValue::String(s) if s == "Reference"));
         }
 
         // Check $ref validation metadata
-        if let Some(Value::Object(ref_validation)) = reference.object.meta.properties.get("ref-validation") {
-            assert_eq!(ref_validation.get("is-valid"), Some(&Value::Bool(true)));
-            assert_eq!(ref_validation.get("ref-value"), Some(&Value::String("#/components/schemas/Pet".to_string())));
-            assert_eq!(ref_validation.get("is-string-element"), Some(&Value::Bool(true)));
+        if let Some(SimpleValue::Object(ref_validation)) = reference.object.meta.properties.get("ref-validation") {
+            assert!(matches!(ref_validation.get("is-valid"), Some(&SimpleValue::Bool(true))));
+            assert!(ref_validation.get("ref-value").and_then(|v| if let SimpleValue::String(s) = v { Some(s.as_str()) } else { None }) == Some("#/components/schemas/Pet"));
+            assert!(matches!(ref_validation.get("is-string-element"), Some(&SimpleValue::Bool(true))));
         }
 
         // Check reference metadata
-        assert_eq!(
+        assert!(matches!(
             reference.object.meta.properties.get("referenced-element"),
-            Some(&Value::String("reference".to_string()))
-        );
-        assert_eq!(
+            Some(SimpleValue::String(s)) if s == "reference"
+        ));
+        assert!(matches!(
             reference.object.meta.properties.get("reference-path"),
-            Some(&Value::String("#/components/schemas/Pet".to_string()))
-        );
+            Some(SimpleValue::String(s)) if s == "#/components/schemas/Pet"
+        ));
 
         assert!(reference.object.meta.properties.contains_key("field-count"));
         assert!(reference.object.meta.properties.contains_key("processed-at"));
@@ -489,7 +487,7 @@ mod tests {
         assert!(reference.object.get("summary").is_some());
         assert_eq!(
             reference.object.meta.properties.get("fixed-field-$ref"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         
         // 3. Verify ReferenceVisitor behavior (reference-element class injection)
@@ -503,22 +501,22 @@ mod tests {
             // StringElement uses metadata instead of classes
             assert_eq!(
                 ref_elem.meta.properties.get("class"),
-                Some(&Value::String("reference-value".to_string()))
+                Some(&SimpleValue::string("reference-value".to_string()))
             );
         }
         
         // 5. Verify canSupportSpecificationExtensions = false behavior
         assert_eq!(
             reference.object.meta.properties.get("can-support-specification-extensions"),
-            Some(&Value::Bool(false))
+            Some(&SimpleValue::bool(false))
         );
         
         // 6. Verify specPath metadata
-        if let Some(Value::Array(spec_path)) = reference.object.meta.properties.get("spec-path") {
+        if let Some(SimpleValue::Array(spec_path)) = reference.object.meta.properties.get("spec-path") {
             assert_eq!(spec_path, &vec![
-                Value::String("document".to_string()),
-                Value::String("objects".to_string()),
-                Value::String("Reference".to_string())
+                SimpleValue::string("document".to_string()),
+                SimpleValue::string("objects".to_string()),
+                SimpleValue::string("Reference".to_string())
             ]);
         }
         

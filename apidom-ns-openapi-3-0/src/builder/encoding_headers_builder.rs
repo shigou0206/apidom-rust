@@ -1,6 +1,4 @@
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
-use serde_json::Value;
+use apidom_ast::*;
 use crate::elements::encoding_headers::EncodingHeadersElement;
 
 /// Basic encoding headers builder
@@ -63,6 +61,11 @@ where
     // Add processing metadata
     add_processing_metadata(&mut headers);
     
+    headers.object.meta.properties.insert(
+        "fixed-field".to_string(), 
+        SimpleValue::bool(true)
+    );
+    
     Some(headers)
 }
 
@@ -90,36 +93,37 @@ fn is_header_element(element: &Element) -> bool {
 
 /// Add metadata for referenced elements
 fn add_referenced_element_metadata(element: &mut ObjectElement, referenced_type: &str) {
-    element.meta.properties.insert("referenced-element".to_string(), Value::String(referenced_type.to_string()));
+    element.meta.properties.insert("referenced-element".to_string(), SimpleValue::string(referenced_type.to_string()));
 }
 
 /// Add metadata for header names
 fn add_header_name_metadata(element: &mut ObjectElement, header_name: &str) {
-    element.meta.properties.insert("headerName".to_string(), Value::String(header_name.to_string()));
+    element.meta.properties.insert("headerName".to_string(), SimpleValue::string(header_name.to_string()));
 }
 
 /// Add spec path metadata
 fn add_spec_path_metadata(element: &mut ObjectElement, path: &[&str]) {
-    let path_values: Vec<Value> = path.iter().map(|s| Value::String(s.to_string())).collect();
-    element.meta.properties.insert("specPath".to_string(), Value::Array(path_values));
+    let path_values: Vec<SimpleValue> = path.iter().map(|s| SimpleValue::string(s.to_string())).collect();
+    element.meta.properties.insert("specPath".to_string(), SimpleValue::array(path_values));
 }
 
 /// Add metadata for fallback handling
 fn add_fallback_metadata(headers: &mut EncodingHeadersElement, header_name: &str) {
     let key = format!("fallback_{}", header_name);
-    headers.object.meta.properties.insert(key, Value::Bool(true));
+    headers.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
 /// Add overall processing metadata
 fn add_processing_metadata(headers: &mut EncodingHeadersElement) {
-    headers.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
-    headers.object.meta.properties.insert("mapVisitor".to_string(), Value::Bool(true));
+    headers.object.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
+    headers.object.meta.properties.insert("mapVisitor".to_string(), SimpleValue::bool(true));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::DefaultFolder;
+    use apidom_ast::DefaultFolder;
+    use apidom_ast::{Element, ObjectElement, StringElement, BooleanElement};
 
     #[test]
     fn test_basic_encoding_headers_builder() {
@@ -166,7 +170,7 @@ mod tests {
         // Verify reference metadata
         if let Some(Element::Object(ref_obj)) = headers.get_header("X-Common") {
             assert!(ref_obj.meta.properties.contains_key("referenced-element"));
-            if let Some(Value::String(ref_type)) = ref_obj.meta.properties.get("referenced-element") {
+            if let Some(SimpleValue::String(ref_type)) = ref_obj.meta.properties.get("referenced-element") {
                 assert_eq!(ref_type, "header");
             }
             assert!(ref_obj.meta.properties.contains_key("specPath"));
@@ -175,7 +179,7 @@ mod tests {
         // Verify header name metadata
         if let Some(Element::Object(header_obj)) = headers.get_header("X-Custom") {
             assert!(header_obj.meta.properties.contains_key("headerName"));
-            if let Some(Value::String(name)) = header_obj.meta.properties.get("headerName") {
+            if let Some(SimpleValue::String(name)) = header_obj.meta.properties.get("headerName") {
                 assert_eq!(name, "X-Custom");
             }
             assert!(header_obj.meta.properties.contains_key("specPath"));
@@ -305,7 +309,7 @@ mod tests {
         // 2. Reference decoration with referenced-element metadata
         if let Some(Element::Object(auth_obj)) = headers.get_header("Authorization") {
             assert!(auth_obj.meta.properties.contains_key("referenced-element"));
-            if let Some(Value::String(ref_type)) = auth_obj.meta.properties.get("referenced-element") {
+            if let Some(SimpleValue::String(ref_type)) = auth_obj.meta.properties.get("referenced-element") {
                 assert_eq!(ref_type, "header");
             }
             assert!(auth_obj.meta.properties.contains_key("specPath"));
@@ -314,14 +318,14 @@ mod tests {
         // 3. Header decoration with headerName metadata
         if let Some(Element::Object(rate_obj)) = headers.get_header("X-Rate-Limit-Remaining") {
             assert!(rate_obj.meta.properties.contains_key("headerName"));
-            if let Some(Value::String(name)) = rate_obj.meta.properties.get("headerName") {
+            if let Some(SimpleValue::String(name)) = rate_obj.meta.properties.get("headerName") {
                 assert_eq!(name, "X-Rate-Limit-Remaining");
             }
         }
         
         if let Some(Element::Object(tracking_obj)) = headers.get_header("X-Tracking-ID") {
             assert!(tracking_obj.meta.properties.contains_key("headerName"));
-            if let Some(Value::String(name)) = tracking_obj.meta.properties.get("headerName") {
+            if let Some(SimpleValue::String(name)) = tracking_obj.meta.properties.get("headerName") {
                 assert_eq!(name, "X-Tracking-ID");
             }
         }

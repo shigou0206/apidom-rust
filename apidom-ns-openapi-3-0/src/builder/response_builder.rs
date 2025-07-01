@@ -1,6 +1,4 @@
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
-use serde_json::Value;
+use apidom_ast::*;
 use crate::elements::response::{ResponseElement, ResponseContentElement, ResponseHeadersElement, ResponseLinksElement};
 
 /// 构建 OpenAPI ResponseElement（从 Minim Object 转换）
@@ -125,7 +123,7 @@ where
                         if let Element::Object(ref mut media_type_obj) = *member.value {
                             media_type_obj.meta.properties.insert(
                                 "media-type".to_string(),
-                                Value::String(media_type_name.clone())
+                                SimpleValue::string(media_type_name.clone())
                             );
                             media_type_obj.add_class("media-type");
                             
@@ -180,14 +178,14 @@ where
                             // Add header-name metadata (equivalent to TypeScript setMetaProperty)
                             header_obj.meta.properties.insert(
                                 "header-name".to_string(),
-                                Value::String(header_name.clone())
+                                SimpleValue::string(header_name.clone())
                             );
                             
                             // Check for reference and add referenced-element metadata
                             if is_reference {
                                 header_obj.meta.properties.insert(
                                     "referenced-element".to_string(),
-                                    Value::String("header".to_string())
+                                    SimpleValue::string("header".to_string())
                                 );
                                 header_obj.add_class("reference-element");
                             } else if is_header {
@@ -245,7 +243,7 @@ where
                             if is_reference {
                                 link_obj.meta.properties.insert(
                                     "referenced-element".to_string(),
-                                    Value::String("link".to_string())
+                                    SimpleValue::string("link".to_string())
                                 );
                                 link_obj.add_class("reference-element");
                             } else if is_link {
@@ -284,7 +282,7 @@ fn process_specification_extensions(response: &mut ResponseElement, source: &Obj
         // Add specification extensions metadata
         response.object.meta.properties.insert(
             "specification-extensions".to_string(),
-            Value::Array(spec_extensions.into_iter().map(Value::String).collect())
+            SimpleValue::array(spec_extensions.into_iter().map(SimpleValue::string).collect())
         );
         response.object.add_class("specification-extension");
     }
@@ -313,41 +311,41 @@ fn inject_response_metadata(obj: &mut ObjectElement, source: &ObjectElement) {
     // Add element type metadata
     obj.meta.properties.insert(
         "element-type".to_string(),
-        Value::String("response".to_string())
+        SimpleValue::string("response".to_string())
     );
     
     // Add spec path metadata (equivalent to TypeScript specPath)
     obj.meta.properties.insert(
         "spec-path".to_string(),
-        Value::Array(vec![
-            Value::String("document".to_string()),
-            Value::String("objects".to_string()),
-            Value::String("Response".to_string())
+        SimpleValue::array(vec![
+            SimpleValue::string("document".to_string()),
+            SimpleValue::string("objects".to_string()),
+            SimpleValue::string("Response".to_string())
         ])
     );
     
     // Add field count metadata
     obj.meta.properties.insert(
         "field-count".to_string(),
-        Value::from(source.content.len())
+        SimpleValue::integer(source.content.len() as i64)
     );
     
     // Add specification extensions support flag
     obj.meta.properties.insert(
         "can-support-specification-extensions".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
     
     // Add processing timestamp
     obj.meta.properties.insert(
         "processed-at".to_string(),
-        Value::String(chrono::Utc::now().to_rfc3339())
+        SimpleValue::string(chrono::Utc::now().to_rfc3339())
     );
     
     // Add visitor information
     obj.meta.properties.insert(
         "processed-by".to_string(),
-        Value::String("ResponseVisitor".to_string())
+        SimpleValue::string("ResponseVisitor".to_string())
     );
 }
 
@@ -394,7 +392,7 @@ fn is_link_element(element: &Element) -> bool {
 fn add_fixed_field_metadata(obj: &mut ObjectElement, field_name: &str) {
     obj.meta.properties.insert(
         format!("fixed-field-{}", field_name),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -402,11 +400,11 @@ fn add_fixed_field_metadata(obj: &mut ObjectElement, field_name: &str) {
 fn add_media_type_metadata(obj: &mut ObjectElement, media_type: &str) {
     obj.meta.properties.insert(
         "media-type-name".to_string(),
-        Value::String(media_type.to_string())
+        SimpleValue::string(media_type.to_string())
     );
     obj.meta.properties.insert(
         "is-media-type".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -414,11 +412,11 @@ fn add_media_type_metadata(obj: &mut ObjectElement, media_type: &str) {
 fn add_header_metadata(obj: &mut ObjectElement, header_name: &str) {
     obj.meta.properties.insert(
         "header-name-metadata".to_string(),
-        Value::String(header_name.to_string())
+        SimpleValue::string(header_name.to_string())
     );
     obj.meta.properties.insert(
         "is-header".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -426,11 +424,11 @@ fn add_header_metadata(obj: &mut ObjectElement, header_name: &str) {
 fn add_link_metadata(obj: &mut ObjectElement, link_name: &str) {
     obj.meta.properties.insert(
         "link-name".to_string(),
-        Value::String(link_name.to_string())
+        SimpleValue::string(link_name.to_string())
     );
     obj.meta.properties.insert(
         "is-link".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -438,7 +436,7 @@ fn add_link_metadata(obj: &mut ObjectElement, link_name: &str) {
 fn add_fallback_field_metadata(obj: &mut ObjectElement, field_name: &str) {
     obj.meta.properties.insert(
         format!("fallback-field-{}", field_name),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -446,11 +444,11 @@ fn add_fallback_field_metadata(obj: &mut ObjectElement, field_name: &str) {
 fn add_content_processing_metadata(obj: &mut ObjectElement) {
     obj.meta.properties.insert(
         "content-processed".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
     obj.meta.properties.insert(
         "content-visitor".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -458,11 +456,11 @@ fn add_content_processing_metadata(obj: &mut ObjectElement) {
 fn add_headers_processing_metadata(obj: &mut ObjectElement) {
     obj.meta.properties.insert(
         "headers-processed".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
     obj.meta.properties.insert(
         "headers-visitor".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -470,11 +468,11 @@ fn add_headers_processing_metadata(obj: &mut ObjectElement) {
 fn add_links_processing_metadata(obj: &mut ObjectElement) {
     obj.meta.properties.insert(
         "links-processed".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
     obj.meta.properties.insert(
         "links-visitor".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -581,37 +579,37 @@ mod tests {
         if let Some(Element::Object(json_mt)) = content.get("application/json") {
             assert_eq!(
                 json_mt.meta.properties.get("media-type"),
-                Some(&Value::String("application/json".to_string()))
+                Some(&SimpleValue::string("application/json".to_string()))
             );
             assert_eq!(
                 json_mt.meta.properties.get("media-type-name"),
-                Some(&Value::String("application/json".to_string()))
+                Some(&SimpleValue::string("application/json".to_string()))
             );
             assert_eq!(
                 json_mt.meta.properties.get("is-media-type"),
-                Some(&Value::Bool(true))
+                Some(&SimpleValue::bool(true))
             );
         }
 
         if let Some(Element::Object(xml_mt)) = content.get("application/xml") {
             assert_eq!(
                 xml_mt.meta.properties.get("media-type"),
-                Some(&Value::String("application/xml".to_string()))
+                Some(&SimpleValue::string("application/xml".to_string()))
             );
         }
 
         // Check processing metadata
         assert_eq!(
             response.object.meta.properties.get("fixed-field-content"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         assert_eq!(
             response.object.meta.properties.get("content-processed"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         assert_eq!(
             response.object.meta.properties.get("content-visitor"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
     }
 
@@ -644,15 +642,15 @@ mod tests {
         if let Some(Element::Object(rate_limit_header)) = headers.get("X-Rate-Limit") {
             assert_eq!(
                 rate_limit_header.meta.properties.get("header-name"),
-                Some(&Value::String("X-Rate-Limit".to_string()))
+                Some(&SimpleValue::string("X-Rate-Limit".to_string()))
             );
             assert_eq!(
                 rate_limit_header.meta.properties.get("header-name-metadata"),
-                Some(&Value::String("X-Rate-Limit".to_string()))
+                Some(&SimpleValue::string("X-Rate-Limit".to_string()))
             );
             assert_eq!(
                 rate_limit_header.meta.properties.get("is-header"),
-                Some(&Value::Bool(true))
+                Some(&SimpleValue::bool(true))
             );
         }
 
@@ -660,26 +658,26 @@ mod tests {
         if let Some(Element::Object(auth_header)) = headers.get("Authorization") {
             assert_eq!(
                 auth_header.meta.properties.get("header-name"),
-                Some(&Value::String("Authorization".to_string()))
+                Some(&SimpleValue::string("Authorization".to_string()))
             );
             assert_eq!(
                 auth_header.meta.properties.get("referenced-element"),
-                Some(&Value::String("header".to_string()))
+                Some(&SimpleValue::string("header".to_string()))
             );
         }
 
         // Check processing metadata
         assert_eq!(
             response.object.meta.properties.get("fixed-field-headers"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         assert_eq!(
             response.object.meta.properties.get("headers-processed"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         assert_eq!(
             response.object.meta.properties.get("headers-visitor"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
     }
 
@@ -712,11 +710,11 @@ mod tests {
         if let Some(Element::Object(get_user_link)) = links.get("GetUserByName") {
             assert_eq!(
                 get_user_link.meta.properties.get("link-name"),
-                Some(&Value::String("GetUserByName".to_string()))
+                Some(&SimpleValue::string("GetUserByName".to_string()))
             );
             assert_eq!(
                 get_user_link.meta.properties.get("is-link"),
-                Some(&Value::Bool(true))
+                Some(&SimpleValue::bool(true))
             );
         }
 
@@ -724,26 +722,26 @@ mod tests {
         if let Some(Element::Object(user_link)) = links.get("UserLink") {
             assert_eq!(
                 user_link.meta.properties.get("link-name"),
-                Some(&Value::String("UserLink".to_string()))
+                Some(&SimpleValue::string("UserLink".to_string()))
             );
             assert_eq!(
                 user_link.meta.properties.get("referenced-element"),
-                Some(&Value::String("link".to_string()))
+                Some(&SimpleValue::string("link".to_string()))
             );
         }
 
         // Check processing metadata
         assert_eq!(
             response.object.meta.properties.get("fixed-field-links"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         assert_eq!(
             response.object.meta.properties.get("links-processed"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         assert_eq!(
             response.object.meta.properties.get("links-visitor"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
     }
 
@@ -763,10 +761,10 @@ mod tests {
 
         // Check specification extensions metadata
         assert!(response.object.meta.properties.contains_key("specification-extensions"));
-        if let Some(Value::Array(extensions)) = response.object.meta.properties.get("specification-extensions") {
+        if let Some(SimpleValue::Array(extensions)) = response.object.meta.properties.get("specification-extensions") {
             assert_eq!(extensions.len(), 2);
-            assert!(extensions.contains(&Value::String("x-custom-field".to_string())));
-            assert!(extensions.contains(&Value::String("x-another-extension".to_string())));
+            assert!(extensions.contains(&SimpleValue::string("x-custom-field".to_string())));
+            assert!(extensions.contains(&SimpleValue::string("x-another-extension".to_string())));
         }
 
         // Check specification extension class
@@ -793,11 +791,11 @@ mod tests {
         // Check fallback field metadata
         assert_eq!(
             response.object.meta.properties.get("fallback-field-unknownField"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         assert_eq!(
             response.object.meta.properties.get("fallback-field-anotherUnknown"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
     }
 
@@ -815,25 +813,25 @@ mod tests {
         // Check comprehensive metadata
         assert_eq!(
             response.object.meta.properties.get("element-type"),
-            Some(&Value::String("response".to_string()))
+            Some(&SimpleValue::string("response".to_string()))
         );
         
         assert_eq!(
             response.object.meta.properties.get("can-support-specification-extensions"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         
         assert_eq!(
             response.object.meta.properties.get("processed-by"),
-            Some(&Value::String("ResponseVisitor".to_string()))
+            Some(&SimpleValue::string("ResponseVisitor".to_string()))
         );
         
         // Check spec path
-        if let Some(Value::Array(spec_path)) = response.object.meta.properties.get("spec-path") {
+        if let Some(SimpleValue::Array(spec_path)) = response.object.meta.properties.get("spec-path") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("Response".to_string()));
+            assert_eq!(spec_path[0], SimpleValue::string("document".to_string()));
+            assert_eq!(spec_path[1], SimpleValue::string("objects".to_string()));
+            assert_eq!(spec_path[2], SimpleValue::string("Response".to_string()));
         }
 
         assert!(response.object.meta.properties.contains_key("field-count"));
@@ -879,7 +877,7 @@ mod tests {
         assert!(response.object.get("description").is_some());
         assert_eq!(
             response.object.meta.properties.get("fixed-field-description"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::bool(true))
         );
         
         // 3. Verify ContentVisitor behavior (media-type metadata injection)
@@ -887,7 +885,7 @@ mod tests {
             if let Some(Element::Object(json_mt)) = content.get("application/json") {
                 assert_eq!(
                     json_mt.meta.properties.get("media-type"),
-                    Some(&Value::String("application/json".to_string()))
+                    Some(&SimpleValue::string("application/json".to_string()))
                 );
             }
         }
@@ -897,13 +895,13 @@ mod tests {
             if let Some(Element::Object(rate_limit)) = headers.get("X-Rate-Limit") {
                 assert_eq!(
                     rate_limit.meta.properties.get("header-name"),
-                    Some(&Value::String("X-Rate-Limit".to_string()))
+                    Some(&SimpleValue::string("X-Rate-Limit".to_string()))
                 );
             }
             if let Some(Element::Object(auth)) = headers.get("Authorization") {
                 assert_eq!(
                     auth.meta.properties.get("referenced-element"),
-                    Some(&Value::String("header".to_string()))
+                    Some(&SimpleValue::string("header".to_string()))
                 );
             }
         }
@@ -913,17 +911,17 @@ mod tests {
             if let Some(Element::Object(user_ref)) = links.get("UserRef") {
                 assert_eq!(
                     user_ref.meta.properties.get("referenced-element"),
-                    Some(&Value::String("link".to_string()))
+                    Some(&SimpleValue::string("link".to_string()))
                 );
             }
         }
         
         // 6. Verify specPath metadata
-        if let Some(Value::Array(spec_path)) = response.object.meta.properties.get("spec-path") {
+        if let Some(SimpleValue::Array(spec_path)) = response.object.meta.properties.get("spec-path") {
             assert_eq!(spec_path, &vec![
-                Value::String("document".to_string()),
-                Value::String("objects".to_string()),
-                Value::String("Response".to_string())
+                SimpleValue::string("document".to_string()),
+                SimpleValue::string("objects".to_string()),
+                SimpleValue::string("Response".to_string())
             ]);
         }
         

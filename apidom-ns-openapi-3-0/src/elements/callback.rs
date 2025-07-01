@@ -1,5 +1,4 @@
-use apidom_ast::minim_model::*;
-use serde_json::Value;
+use apidom_ast::*;
 
 /// OpenAPI 3.x CallbackElement
 /// 支持运行时表达式检测、元数据操作、$ref 处理等高级功能
@@ -118,7 +117,7 @@ impl CallbackElement {
     }
 
     /// 为指定键的元素设置元数据
-    pub fn set_meta_property(&mut self, key: &str, meta_key: &str, meta_value: Value) -> bool {
+    pub fn set_meta_property(&mut self, key: &str, meta_key: &str, meta_value: SimpleValue) -> bool {
         for member in &mut self.object.content {
             if let Element::String(key_str) = &*member.key {
                 if key_str.content == key {
@@ -133,7 +132,7 @@ impl CallbackElement {
     }
 
     /// 获取指定键的元素的元数据
-    pub fn get_meta_property(&self, key: &str, meta_key: &str) -> Option<&Value> {
+    pub fn get_meta_property(&self, key: &str, meta_key: &str) -> Option<&SimpleValue> {
         for member in &self.object.content {
             if let Element::String(key_str) = &*member.key {
                 if key_str.content == key {
@@ -164,7 +163,7 @@ impl CallbackElement {
         }
         
         for (key, expression) in updates {
-            self.set_meta_property(&key, "runtime-expression", Value::String(expression));
+            self.set_meta_property(&key, "runtime-expression", SimpleValue::string(expression));
         }
     }
 
@@ -329,13 +328,13 @@ mod tests {
         callback.set("testPath", Element::Object(path_item));
         
         // 设置元数据
-        let success = callback.set_meta_property("testPath", "runtime-expression", Value::String("{test}".to_string()));
+        let success = callback.set_meta_property("testPath", "runtime-expression", SimpleValue::string("{test}".to_string()));
         assert!(success);
         
         // 获取元数据
         let meta_value = callback.get_meta_property("testPath", "runtime-expression");
         assert!(meta_value.is_some());
-        if let Some(Value::String(expr)) = meta_value {
+        if let Some(SimpleValue::String(expr)) = meta_value {
             assert_eq!(expr, "{test}");
         }
     }

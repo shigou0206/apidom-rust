@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use apidom_ast::minim_model::Element;
+use apidom_ast::*;
 
 /// URL构建器，用于从OpenAPI组件构建完整的URL
 #[derive(Debug, Clone)]
@@ -337,7 +337,7 @@ impl UrlTemplate {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::minim_model::{ObjectElement, ArrayElement, StringElement};
+    use apidom_ast::{ObjectElement, ArrayElement, StringElement};
 
     #[test]
     fn test_url_builder_basic() {

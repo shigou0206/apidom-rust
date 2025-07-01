@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::{Element, ObjectElement};
+use apidom_ast::{Element, ObjectElement};
 
 #[derive(Debug, Clone)]
 pub struct ComponentsElement {

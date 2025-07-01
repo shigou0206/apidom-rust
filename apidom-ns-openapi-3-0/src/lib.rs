@@ -8,7 +8,6 @@ pub mod fold_pass;
 pub mod patterned_fields;
 pub mod reference_resolver;
 pub mod extensible_framework;
-pub mod dto;
 
 pub use elements::*;
 pub use specification::*;

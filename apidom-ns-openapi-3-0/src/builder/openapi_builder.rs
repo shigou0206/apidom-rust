@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use crate::elements::openapi::OpenapiElement;
 
 /// 构建 `OpenapiElement`，从 Minim StringElement → OpenapiElement

@@ -1,6 +1,6 @@
 use apidom_ns_openapi_3_0::fold_pass::{create_openapi_pipeline, create_strict_openapi_pipeline, enhance_element_with_metadata};
 use apidom_ns_openapi_3_0::specification::create_openapi_specification;
-use apidom_ast::minim_model::{Element, ObjectElement, StringElement, ArrayElement};
+use apidom_ast::{Element, ObjectElement, StringElement, ArrayElement};
 
 fn main() {
     println!("=== Complete OpenAPI Pipeline Demo ===\n");

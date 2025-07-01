@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::{Element, ObjectElement};
+use apidom_ast::{Element, ObjectElement};
 
 /// A semantic element representing an OpenAPI 3.1.x "Callback" object.
 #[derive(Debug, Clone)]

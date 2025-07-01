@@ -42,8 +42,7 @@
 //! - ✅ Fallback processing for unknown fields
 //! - ✅ Comprehensive metadata injection and validation
 
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
+use apidom_ast::*;
 use serde_json::Value;
 use crate::elements::media_type::MediaTypeElement;
 use crate::builder::encoding_builder::build_and_decorate_encoding;
@@ -151,7 +150,7 @@ fn process_schema_field(element: &Element, media_type: &mut MediaTypeElement) ->
         // Add reference metadata
         if let Element::Object(obj) = element {
             if obj.get("$ref").is_some() {
-                media_type.object.meta.properties.insert("schema-referenced-element".to_string(), Value::String("schema".to_string()));
+                media_type.object.meta.properties.insert("schema-referenced-element".to_string(), SimpleValue::String("schema".to_string()));
                 add_schema_ref_metadata(media_type);
             }
         }
@@ -193,7 +192,7 @@ where
                 if let Some(example_element) = build_and_decorate_example(&Element::Object(example_obj.clone()), folder.as_deref_mut()) {
                     // Inject example name metadata
                     let mut enhanced_obj = example_element.object;
-                    enhanced_obj.meta.properties.insert("exampleName".to_string(), Value::String(example_name.clone()));
+                    enhanced_obj.meta.properties.insert("exampleName".to_string(), SimpleValue::String(example_name.clone()));
                     Element::Object(enhanced_obj)
                 } else {
                     Element::Object(example_obj)
@@ -241,7 +240,7 @@ where
                 if let Some(encoding_element) = build_and_decorate_encoding(&Element::Object(encoding_obj.clone()), folder.as_deref_mut()) {
                     // Inject encoding name metadata
                     let mut enhanced_obj = encoding_element.object;
-                    enhanced_obj.meta.properties.insert("encodingName".to_string(), Value::String(encoding_name.clone()));
+                    enhanced_obj.meta.properties.insert("encodingName".to_string(), SimpleValue::String(encoding_name.clone()));
                     Element::Object(enhanced_obj)
                 } else {
                     Element::Object(encoding_obj)
@@ -271,72 +270,72 @@ fn is_reference_like_element(element: &Element) -> bool {
 /// Add metadata for fixed fields
 fn add_fixed_field_metadata(media_type: &mut MediaTypeElement, field_name: &str) {
     let key = format!("fixedField_{}", field_name);
-    media_type.object.meta.properties.insert(key, Value::Bool(true));
+    media_type.object.meta.properties.insert(key, SimpleValue::Bool(true));
     media_type.object.classes.content.push(Element::String(StringElement::new("fixed-field")));
 }
 
 /// Add metadata for references
 fn add_ref_metadata(media_type: &mut MediaTypeElement, field_name: &str) {
     let key = format!("ref_{}", field_name);
-    media_type.object.meta.properties.insert(key, Value::Bool(true));
-    media_type.object.meta.properties.insert("referenced-element".to_string(), Value::String("mediaType".to_string()));
+    media_type.object.meta.properties.insert(key, SimpleValue::Bool(true));
+    media_type.object.meta.properties.insert("referenced-element".to_string(), SimpleValue::String("mediaType".to_string()));
 }
 
 /// Add metadata for specification extensions
 fn add_specification_extension_metadata(media_type: &mut MediaTypeElement, field_name: &str) {
     let key = format!("specificationExtension_{}", field_name);
-    media_type.object.meta.properties.insert(key, Value::Bool(true));
+    media_type.object.meta.properties.insert(key, SimpleValue::Bool(true));
     media_type.object.classes.content.push(Element::String(StringElement::new("specification-extension")));
 }
 
 /// Add metadata for fallback handling
 fn add_fallback_metadata(media_type: &mut MediaTypeElement, field_name: &str) {
     let key = format!("fallback_{}", field_name);
-    media_type.object.meta.properties.insert(key, Value::Bool(true));
+    media_type.object.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add validation error metadata
 fn add_validation_error_metadata(media_type: &mut MediaTypeElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
-    media_type.object.meta.properties.insert(key, Value::String(error_msg.to_string()));
+    media_type.object.meta.properties.insert(key, SimpleValue::String(error_msg.to_string()));
 }
 
 /// Add metadata for schema processing
 fn add_schema_metadata(media_type: &mut MediaTypeElement) {
-    media_type.object.meta.properties.insert("hasSchema".to_string(), Value::Bool(true));
+    media_type.object.meta.properties.insert("hasSchema".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add metadata for schema references
 fn add_schema_ref_metadata(media_type: &mut MediaTypeElement) {
-    media_type.object.meta.properties.insert("hasSchemaRef".to_string(), Value::Bool(true));
+    media_type.object.meta.properties.insert("hasSchemaRef".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add metadata for examples processing
 fn add_examples_processing_metadata(media_type: &mut MediaTypeElement) {
-    media_type.object.meta.properties.insert("examplesProcessed".to_string(), Value::Bool(true));
-    media_type.object.meta.properties.insert("examplesVisitor".to_string(), Value::Bool(true));
+    media_type.object.meta.properties.insert("examplesProcessed".to_string(), SimpleValue::Bool(true));
+    media_type.object.meta.properties.insert("examplesVisitor".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add metadata for encoding processing
 fn add_encoding_processing_metadata(media_type: &mut MediaTypeElement) {
-    media_type.object.meta.properties.insert("encodingProcessed".to_string(), Value::Bool(true));
-    media_type.object.meta.properties.insert("encodingVisitor".to_string(), Value::Bool(true));
+    media_type.object.meta.properties.insert("encodingProcessed".to_string(), SimpleValue::Bool(true));
+    media_type.object.meta.properties.insert("encodingVisitor".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add overall processing metadata
 fn add_processing_metadata(media_type: &mut MediaTypeElement) {
-    media_type.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
-    media_type.object.meta.properties.insert("fixedFieldsVisitor".to_string(), Value::Bool(true));
-    media_type.object.meta.properties.insert("fallbackVisitor".to_string(), Value::Bool(true));
-    media_type.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), Value::Bool(true));
+    media_type.object.meta.properties.insert("processed".to_string(), SimpleValue::Bool(true));
+    media_type.object.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::Bool(true));
+    media_type.object.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::Bool(true));
+    media_type.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add spec path metadata
 fn add_spec_path_metadata(media_type: &mut MediaTypeElement) {
-    media_type.object.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("document".to_string()),
-        Value::String("objects".to_string()),
-        Value::String("MediaType".to_string())
+    media_type.object.meta.properties.insert("specPath".to_string(), SimpleValue::Array(vec![
+        SimpleValue::String("document".to_string()),
+        SimpleValue::String("objects".to_string()),
+        SimpleValue::String("MediaType".to_string())
     ]));
 }
 
@@ -353,14 +352,13 @@ fn validate_media_type(media_type: &mut MediaTypeElement) {
             "MediaType cannot have both 'example' and 'examples' properties"
         );
     } else {
-        media_type.object.meta.properties.insert("validMediaType".to_string(), Value::Bool(true));
+        media_type.object.meta.properties.insert("validMediaType".to_string(), SimpleValue::Bool(true));
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::DefaultFolder;
 
     #[test]
     fn test_basic_media_type_builder() {
@@ -431,7 +429,7 @@ mod tests {
         // Verify reference metadata
         assert!(media_type.object.meta.properties.contains_key("hasSchemaRef"));
         assert!(media_type.object.meta.properties.contains_key("schema-referenced-element"));
-        if let Some(Value::String(ref_type)) = media_type.object.meta.properties.get("schema-referenced-element") {
+        if let Some(SimpleValue::String(ref_type)) = media_type.object.meta.properties.get("schema-referenced-element") {
             assert_eq!(ref_type, "schema");
         }
     }
@@ -485,7 +483,7 @@ mod tests {
         // Verify example name metadata is injected
         if let Some(Element::Object(simple_obj)) = examples.get("simple") {
             assert!(simple_obj.meta.properties.contains_key("exampleName"));
-            if let Some(Value::String(name)) = simple_obj.meta.properties.get("exampleName") {
+            if let Some(SimpleValue::String(name)) = simple_obj.meta.properties.get("exampleName") {
                 assert_eq!(name, "simple");
             }
         }
@@ -532,7 +530,7 @@ mod tests {
         // Verify encoding name metadata is injected
         if let Some(Element::Object(form_obj)) = encoding.get("form") {
             assert!(form_obj.meta.properties.contains_key("encodingName"));
-            if let Some(Value::String(name)) = form_obj.meta.properties.get("encodingName") {
+            if let Some(SimpleValue::String(name)) = form_obj.meta.properties.get("encodingName") {
                 assert_eq!(name, "form");
             }
         }
@@ -554,7 +552,7 @@ mod tests {
         // Verify reference metadata
         assert!(media_type.object.meta.properties.contains_key("ref_$ref"));
         assert!(media_type.object.meta.properties.contains_key("referenced-element"));
-        if let Some(Value::String(ref_type)) = media_type.object.meta.properties.get("referenced-element") {
+        if let Some(SimpleValue::String(ref_type)) = media_type.object.meta.properties.get("referenced-element") {
             assert_eq!(ref_type, "mediaType");
         }
     }
@@ -601,7 +599,7 @@ mod tests {
         assert!(media_type.object.meta.properties.contains_key("validationError_mediaType"));
         
         // Verify the error message
-        if let Some(Value::String(error_msg)) = media_type.object.meta.properties.get("validationError_mediaType") {
+        if let Some(SimpleValue::String(error_msg)) = media_type.object.meta.properties.get("validationError_mediaType") {
             assert!(error_msg.contains("cannot have both 'example' and 'examples'"));
         }
     }
@@ -758,7 +756,7 @@ mod tests {
         // Verify example name metadata injection
         if let Some(Element::Object(cat_obj)) = examples.get("cat") {
             assert!(cat_obj.meta.properties.contains_key("exampleName"));
-            if let Some(Value::String(name)) = cat_obj.meta.properties.get("exampleName") {
+            if let Some(SimpleValue::String(name)) = cat_obj.meta.properties.get("exampleName") {
                 assert_eq!(name, "cat");
             }
         }
@@ -766,7 +764,7 @@ mod tests {
         // Verify encoding name metadata injection
         if let Some(Element::Object(profile_obj)) = encoding.get("profileImage") {
             assert!(profile_obj.meta.properties.contains_key("encodingName"));
-            if let Some(Value::String(name)) = profile_obj.meta.properties.get("encodingName") {
+            if let Some(SimpleValue::String(name)) = profile_obj.meta.properties.get("encodingName") {
                 assert_eq!(name, "profileImage");
             }
         }

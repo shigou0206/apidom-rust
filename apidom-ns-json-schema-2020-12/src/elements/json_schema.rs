@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::{Element, ObjectElement, StringElement, ArrayElement, SchemaElement};
 use apidom_ns_json_schema_2019_09::elements::json_schema::JSONSchema201909Element;
 
 /// JSON Schema Draft 2020-12 Element

@@ -1,6 +1,5 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use crate::elements::xml::XmlElement;
-use serde_json::Value;
 
 /// Comprehensive OpenAPI XML Builder
 /// 
@@ -28,7 +27,7 @@ pub fn build_and_decorate_xml<F>(
     mut folder: Option<&mut F>
 ) -> Option<XmlElement>
 where
-    F: apidom_ast::fold::Fold,
+    F: Fold,
 {
     let obj = element.as_object()?;
     let mut xml = XmlElement::new();
@@ -44,53 +43,53 @@ where
                 "name" => {
                     if let Some(converted) = convert_to_string_element(value) {
                         xml.object.set(key_str, Element::String(converted));
-                        add_fixed_field_metadata(&mut xml.object, key_str);
+                        add_fixed_field_metadata(&mut xml, key_str);
                     } else if let Some(folded) = folder.as_mut().map(|f| f.fold_element(value.clone())) {
                         xml.object.set(key_str, folded);
-                        add_fixed_field_metadata(&mut xml.object, key_str);
+                        add_fixed_field_metadata(&mut xml, key_str);
                     }
                 }
                 "namespace" => {
                     if let Some(converted) = convert_to_string_element(value) {
                         xml.object.set(key_str, Element::String(converted));
-                        add_fixed_field_metadata(&mut xml.object, key_str);
+                        add_fixed_field_metadata(&mut xml, key_str);
                     } else if let Some(folded) = folder.as_mut().map(|f| f.fold_element(value.clone())) {
                         xml.object.set(key_str, folded);
-                        add_fixed_field_metadata(&mut xml.object, key_str);
+                        add_fixed_field_metadata(&mut xml, key_str);
                     }
                 }
                 "prefix" => {
                     if let Some(converted) = convert_to_string_element(value) {
                         xml.object.set(key_str, Element::String(converted));
-                        add_fixed_field_metadata(&mut xml.object, key_str);
+                        add_fixed_field_metadata(&mut xml, key_str);
                     } else if let Some(folded) = folder.as_mut().map(|f| f.fold_element(value.clone())) {
                         xml.object.set(key_str, folded);
-                        add_fixed_field_metadata(&mut xml.object, key_str);
+                        add_fixed_field_metadata(&mut xml, key_str);
                     }
                 }
                 "attribute" => {
                     if let Some(converted) = convert_to_boolean_element(value) {
                         xml.object.set(key_str, Element::Boolean(converted));
-                        add_fixed_field_metadata(&mut xml.object, key_str);
+                        add_fixed_field_metadata(&mut xml, key_str);
                     } else if let Some(folded) = folder.as_mut().map(|f| f.fold_element(value.clone())) {
                         xml.object.set(key_str, folded);
-                        add_fixed_field_metadata(&mut xml.object, key_str);
+                        add_fixed_field_metadata(&mut xml, key_str);
                     }
                 }
                 "wrapped" => {
                     if let Some(converted) = convert_to_boolean_element(value) {
                         xml.object.set(key_str, Element::Boolean(converted));
-                        add_fixed_field_metadata(&mut xml.object, key_str);
+                        add_fixed_field_metadata(&mut xml, key_str);
                     } else if let Some(folded) = folder.as_mut().map(|f| f.fold_element(value.clone())) {
                         xml.object.set(key_str, folded);
-                        add_fixed_field_metadata(&mut xml.object, key_str);
+                        add_fixed_field_metadata(&mut xml, key_str);
                     }
                 }
                 "$ref" => {
                     // Handle $ref with reference metadata
                     if let Element::String(ref_str) = value {
                         xml.object.set("$ref", value.clone());
-                        add_reference_metadata(&mut xml.object, &ref_str.content, "xml");
+                        add_reference_metadata(&mut xml, &ref_str.content, "xml");
                     }
                 }
                 _ => {
@@ -103,7 +102,7 @@ where
                             value.clone()
                         };
                         xml.object.set(key_str, processed_value);
-                        add_specification_extension_metadata(&mut xml.object, key_str);
+                        add_specification_extension_metadata(&mut xml, key_str);
                     } else {
                         // Fallback field - preserve unknown fields
                         let processed_value = if let Some(ref mut f) = folder {
@@ -112,7 +111,7 @@ where
                             value.clone()
                         };
                         xml.object.set(key_str, processed_value);
-                        add_fallback_field_metadata(&mut xml.object, key_str);
+                        add_fallback_metadata(&mut xml, key_str);
                     }
                 }
             }
@@ -123,11 +122,11 @@ where
     xml.object.add_class("xml");
     xml.object.meta.properties.insert(
         "element-type".to_string(),
-        Value::String("xml".to_string())
+        SimpleValue::string("xml")
     );
     
     // Add spec path metadata (equivalent to TypeScript specPath)
-    add_spec_path_metadata(&mut xml.object);
+    add_spec_path_metadata(&mut xml);
     
     // Validate XML structure (XML has no required fields in OpenAPI)
     validate_xml(&xml)?;
@@ -166,53 +165,42 @@ fn convert_to_boolean_element(element: &Element) -> Option<BooleanElement> {
 }
 
 /// Add metadata for fixed fields
-fn add_fixed_field_metadata(obj: &mut ObjectElement, field_name: &str) {
-    obj.meta.properties.insert(
-        format!("fixed-field-{}", field_name),
-        Value::Bool(true)
-    );
+fn add_fixed_field_metadata(xml: &mut XmlElement, field_name: &str) {
+    let key = format!("fixed-field_{}", field_name);
+    xml.object.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add metadata for specification extensions
-fn add_specification_extension_metadata(obj: &mut ObjectElement, field_name: &str) {
-    obj.add_class("specification-extension");
-    obj.meta.properties.insert(
-        "specification-extension".to_string(),
-        Value::String(field_name.to_string())
-    );
+fn add_specification_extension_metadata(xml: &mut XmlElement, field_name: &str) {
+    let key = format!("specificationExtension_{}", field_name);
+    xml.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
 /// Add metadata for fallback fields
-fn add_fallback_field_metadata(obj: &mut ObjectElement, field_name: &str) {
-    obj.meta.properties.insert(
-        format!("fallback-field-{}", field_name),
-        Value::Bool(true)
-    );
+fn add_fallback_metadata(xml: &mut XmlElement, field_name: &str) {
+    let key = format!("fallback_{}", field_name);
+    xml.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
 /// Add metadata for $ref references
-fn add_reference_metadata(obj: &mut ObjectElement, ref_path: &str, element_type: &str) {
-    obj.add_class("reference");
-    obj.meta.properties.insert(
+fn add_reference_metadata(xml: &mut XmlElement, element_type: &str, ref_path: &str) {
+    xml.object.meta.properties.insert(
         "referenced-element".to_string(),
-        Value::String(element_type.to_string())
+        SimpleValue::string(element_type.to_string())
     );
-    obj.meta.properties.insert(
+    xml.object.meta.properties.insert(
         "reference-path".to_string(),
-        Value::String(ref_path.to_string())
+        SimpleValue::string(ref_path.to_string())
     );
 }
 
 /// Add spec path metadata (equivalent to TypeScript specPath)
-fn add_spec_path_metadata(obj: &mut ObjectElement) {
-    obj.meta.properties.insert(
-        "spec-path".to_string(),
-        Value::Array(vec![
-            Value::String("document".to_string()),
-            Value::String("objects".to_string()),
-            Value::String("XML".to_string()),
-        ])
-    );
+fn add_spec_path_metadata(xml: &mut XmlElement) {
+    xml.object.meta.properties.insert("specPath".to_string(), SimpleValue::array(vec![
+        SimpleValue::string("document".to_string()),
+        SimpleValue::string("objects".to_string()),
+        SimpleValue::string("XML".to_string())
+    ]));
 }
 
 /// Validate XML structure (XML has no required fields in OpenAPI)
@@ -280,11 +268,11 @@ mod tests {
         let xml = result.unwrap();
         
         // Verify fixed field metadata
-        assert!(xml.object.meta.properties.contains_key("fixed-field-name"));
-        assert!(xml.object.meta.properties.contains_key("fixed-field-namespace"));
-        assert!(xml.object.meta.properties.contains_key("fixed-field-prefix"));
-        assert!(xml.object.meta.properties.contains_key("fixed-field-attribute"));
-        assert!(xml.object.meta.properties.contains_key("fixed-field-wrapped"));
+        assert!(xml.object.meta.properties.contains_key("fixed-field_name"));
+        assert!(xml.object.meta.properties.contains_key("fixed-field_namespace"));
+        assert!(xml.object.meta.properties.contains_key("fixed-field_prefix"));
+        assert!(xml.object.meta.properties.contains_key("fixed-field_attribute"));
+        assert!(xml.object.meta.properties.contains_key("fixed-field_wrapped"));
         
         // Verify element class
         assert!(xml.object.classes.content.iter().any(|e| {
@@ -296,12 +284,12 @@ mod tests {
         }));
         
         // Verify spec path metadata
-        assert!(xml.object.meta.properties.contains_key("spec-path"));
-        if let Some(Value::Array(spec_path)) = xml.object.meta.properties.get("spec-path") {
+        assert!(xml.object.meta.properties.contains_key("specPath"));
+        if let Some(SimpleValue::Array(spec_path)) = xml.object.meta.properties.get("specPath") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("XML".to_string()));
+            assert!(matches!(spec_path[0], SimpleValue::String(ref s) if s == "document"));
+            assert!(matches!(spec_path[1], SimpleValue::String(ref s) if s == "objects"));
+            assert!(matches!(spec_path[2], SimpleValue::String(ref s) if s == "XML"));
         }
         
         // Verify field values
@@ -334,7 +322,7 @@ mod tests {
         // Verify specification extension metadata
         assert!(xml.object.classes.content.iter().any(|e| {
             if let Element::String(s) = e {
-                s.content == "specification-extension"
+                s.content == "specificationExtension_x-internal-id"
             } else {
                 false
             }
@@ -361,8 +349,8 @@ mod tests {
         let xml = result.unwrap();
         
         // Verify fallback field metadata
-        assert!(xml.object.meta.properties.contains_key("fallback-field-customField"));
-        assert!(xml.object.meta.properties.contains_key("fallback-field-anotherField"));
+        assert!(xml.object.meta.properties.contains_key("fallback_customField"));
+        assert!(xml.object.meta.properties.contains_key("fallback_anotherField"));
         assert!(xml.object.get("customField").is_some());
         assert!(xml.object.get("anotherField").is_some());
     }
@@ -385,14 +373,12 @@ mod tests {
                 false
             }
         }));
-        assert_eq!(
-            xml.object.meta.properties.get("referenced-element"),
-            Some(&Value::String("xml".to_string()))
-        );
-        assert_eq!(
-            xml.object.meta.properties.get("reference-path"),
-            Some(&Value::String("#/components/schemas/XmlDefinition".to_string()))
-        );
+        if let Some(SimpleValue::String(s)) = xml.object.meta.properties.get("referenced-element") {
+            assert_eq!(s, "xml");
+        }
+        if let Some(SimpleValue::String(s)) = xml.object.meta.properties.get("reference-path") {
+            assert_eq!(s, "#/components/schemas/XmlDefinition");
+        }
     }
 
     #[test]
@@ -476,16 +462,16 @@ mod tests {
         // Verify TypeScript equivalence features:
         
         // 1. Fixed fields processing
-        assert!(xml.object.meta.properties.contains_key("fixed-field-name"));
-        assert!(xml.object.meta.properties.contains_key("fixed-field-namespace"));
-        assert!(xml.object.meta.properties.contains_key("fixed-field-prefix"));
-        assert!(xml.object.meta.properties.contains_key("fixed-field-attribute"));
-        assert!(xml.object.meta.properties.contains_key("fixed-field-wrapped"));
+        assert!(xml.object.meta.properties.contains_key("fixed-field_name"));
+        assert!(xml.object.meta.properties.contains_key("fixed-field_namespace"));
+        assert!(xml.object.meta.properties.contains_key("fixed-field_prefix"));
+        assert!(xml.object.meta.properties.contains_key("fixed-field_attribute"));
+        assert!(xml.object.meta.properties.contains_key("fixed-field_wrapped"));
         
         // 2. Specification extensions
         assert!(xml.object.classes.content.iter().any(|e| {
             if let Element::String(s) = e {
-                s.content == "specification-extension"
+                s.content == "specificationExtension_x-xml-version"
             } else {
                 false
             }
@@ -494,7 +480,7 @@ mod tests {
         assert!(xml.object.get("x-encoding").is_some());
         
         // 3. Fallback field handling
-        assert!(xml.object.meta.properties.contains_key("fallback-field-customMetadata"));
+        assert!(xml.object.meta.properties.contains_key("fallback_customMetadata"));
         assert!(xml.object.get("customMetadata").is_some());
         
         // 4. Element classification
@@ -505,18 +491,17 @@ mod tests {
                 false
             }
         }));
-        assert_eq!(
-            xml.object.meta.properties.get("element-type"),
-            Some(&Value::String("xml".to_string()))
-        );
+        if let Some(SimpleValue::String(s)) = xml.object.meta.properties.get("element-type") {
+            assert_eq!(s, "xml");
+        }
         
         // 5. Spec path metadata (equivalent to TypeScript specPath)
-        assert!(xml.object.meta.properties.contains_key("spec-path"));
-        if let Some(Value::Array(spec_path)) = xml.object.meta.properties.get("spec-path") {
+        assert!(xml.object.meta.properties.contains_key("specPath"));
+        if let Some(SimpleValue::Array(spec_path)) = xml.object.meta.properties.get("specPath") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("XML".to_string()));
+            assert!(matches!(spec_path[0], SimpleValue::String(ref s) if s == "document"));
+            assert!(matches!(spec_path[1], SimpleValue::String(ref s) if s == "objects"));
+            assert!(matches!(spec_path[2], SimpleValue::String(ref s) if s == "XML"));
         }
         
         // 6. Field value validation
@@ -544,5 +529,64 @@ mod tests {
         
         // 7. No required field validation (XML has no required fields)
         // This is validated by the fact that empty XML objects are valid
+    }
+
+    #[test]
+    fn test_xml_builder() {
+        let mut obj = ObjectElement::new();
+        obj.set("name", Element::String(StringElement::new("item")));
+        obj.set("namespace", Element::String(StringElement::new("http://example.com/schema")));
+        obj.set("prefix", Element::String(StringElement::new("ex")));
+        obj.set("attribute", Element::Boolean(BooleanElement::new(true)));
+        obj.set("wrapped", Element::Boolean(BooleanElement::new(false)));
+        
+        let result = build_and_decorate_xml(&Element::Object(obj), None::<&mut crate::fold::OpenApiBuilderFolder>);
+        
+        assert!(result.is_some());
+        let xml = result.unwrap();
+        
+        // Verify reference metadata
+        if let Some(SimpleValue::String(s)) = xml.object.meta.properties.get("referenced-element") {
+            assert_eq!(s, "xml");
+        }
+        if let Some(SimpleValue::String(s)) = xml.object.meta.properties.get("reference-path") {
+            assert_eq!(s, "#/components/schemas/XmlDefinition");
+        }
+        // Verify spec path metadata
+        assert!(xml.object.meta.properties.contains_key("specPath"));
+        if let Some(SimpleValue::Array(spec_path)) = xml.object.meta.properties.get("specPath") {
+            assert_eq!(spec_path.len(), 3);
+            assert!(matches!(spec_path[0], SimpleValue::String(ref s) if s == "document"));
+            assert!(matches!(spec_path[1], SimpleValue::String(ref s) if s == "objects"));
+            assert!(matches!(spec_path[2], SimpleValue::String(ref s) if s == "XML"));
+        }
+    }
+
+    #[test]
+    fn test_xml_builder_with_folder() {
+        let mut obj = ObjectElement::new();
+        obj.set("name", Element::String(StringElement::new("item")));
+        obj.set("namespace", Element::String(StringElement::new("http://example.com/schema")));
+        obj.set("prefix", Element::String(StringElement::new("ex")));
+        obj.set("attribute", Element::Boolean(BooleanElement::new(true)));
+        obj.set("wrapped", Element::Boolean(BooleanElement::new(false)));
+        
+        let result = build_and_decorate_xml(&Element::Object(obj), None::<&mut crate::fold::OpenApiBuilderFolder>);
+        
+        assert!(result.is_some());
+        let xml = result.unwrap();
+        
+        // Verify reference metadata
+        if let Some(SimpleValue::String(s)) = xml.object.meta.properties.get("referenced-element") {
+            assert_eq!(s, "xml");
+        }
+        // Verify spec path metadata
+        assert!(xml.object.meta.properties.contains_key("specPath"));
+        if let Some(SimpleValue::Array(spec_path)) = xml.object.meta.properties.get("specPath") {
+            assert_eq!(spec_path.len(), 3);
+            assert!(matches!(spec_path[0], SimpleValue::String(ref s) if s == "document"));
+            assert!(matches!(spec_path[1], SimpleValue::String(ref s) if s == "objects"));
+            assert!(matches!(spec_path[2], SimpleValue::String(ref s) if s == "XML"));
+        }
     }
 }

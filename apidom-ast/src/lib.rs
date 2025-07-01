@@ -1,6 +1,8 @@
-pub mod minim_model;
-pub mod fold;
+mod minim_model;
+mod fold;
+mod simple_value;
 
 // Re-export commonly used items for convenience
-pub use fold::{Fold, DefaultFolder, CompositeFolder};
-pub use minim_model::{Element, ElementRegistry};
+pub use fold::*;
+pub use minim_model::*;
+pub use simple_value::*;

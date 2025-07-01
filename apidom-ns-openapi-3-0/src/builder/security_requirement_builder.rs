@@ -1,6 +1,4 @@
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
-use serde_json::Value;
+use apidom_ast::*;
 use crate::elements::security_requirement::SecurityRequirementElement;
 
 /// Comprehensive OpenAPI SecurityRequirement Builder
@@ -162,7 +160,7 @@ where
     sec_req.object.add_class("security-requirement");
     sec_req.object.meta.properties.insert(
         "element-type".to_string(),
-        Value::String("securityRequirement".to_string())
+        SimpleValue::string("securityRequirement".to_string())
     );
     
     // Validate SecurityRequirement structure
@@ -209,7 +207,7 @@ fn add_security_scheme_name_metadata(key_element: &mut StringElement) {
     key_element.add_class("map-key");
     key_element.meta.properties.insert(
         "security-scheme-name".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -219,7 +217,7 @@ fn add_security_scheme_metadata(member: &mut MemberElement) {
     if let Element::String(ref mut key_str) = *member.key {
         key_str.meta.properties.insert(
             "map-field".to_string(),
-            Value::Bool(true)
+            SimpleValue::bool(true)
         );
     }
 }
@@ -230,7 +228,7 @@ fn add_extension_metadata(member: &mut MemberElement) {
     if let Element::String(ref mut key_str) = *member.key {
         key_str.meta.properties.insert(
             "specification-extension".to_string(),
-            Value::Bool(true)
+            SimpleValue::bool(true)
         );
     }
 }
@@ -241,7 +239,7 @@ fn add_fallback_field_metadata(member: &mut MemberElement) {
     if let Element::String(ref mut key_str) = *member.key {
         key_str.meta.properties.insert(
             "fallback-field".to_string(),
-            Value::Bool(true)
+            SimpleValue::bool(true)
         );
     }
 }
@@ -250,15 +248,15 @@ fn add_fallback_field_metadata(member: &mut MemberElement) {
 fn add_scopes_metadata(scopes_array: &mut ArrayElement, scheme_name: &str) {
     scopes_array.meta.properties.insert(
         "security-scheme".to_string(),
-        Value::String(scheme_name.to_string())
+        SimpleValue::string(scheme_name.to_string())
     );
     scopes_array.meta.properties.insert(
         "scopes-array".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
     scopes_array.meta.properties.insert(
         "security-scopes".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -267,39 +265,39 @@ fn add_ref_metadata(sec_req: &mut SecurityRequirementElement, ref_path: &str) {
     sec_req.object.add_class("reference");
     sec_req.object.meta.properties.insert(
         "referenced-element".to_string(),
-        Value::String("securityRequirement".to_string())
+        SimpleValue::string("securityRequirement".to_string())
     );
     sec_req.object.meta.properties.insert(
         "reference-path".to_string(),
-        Value::String(ref_path.to_string())
+        SimpleValue::string(ref_path.to_string())
     );
 }
 
 /// Add metadata for fixed fields
 fn add_fixed_field_metadata(sec_req: &mut SecurityRequirementElement, field_name: &str) {
     let key = format!("fixedField_{}", field_name);
-    sec_req.object.meta.properties.insert(key, Value::Bool(true));
+    sec_req.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
 /// Add metadata for specification extensions
 fn add_specification_extension_metadata(sec_req: &mut SecurityRequirementElement, field_name: &str) {
     let key = format!("specificationExtension_{}", field_name);
-    sec_req.object.meta.properties.insert(key, Value::Bool(true));
+    sec_req.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
 /// Add metadata for fallback handling
 fn add_fallback_metadata(sec_req: &mut SecurityRequirementElement, field_name: &str) {
     let key = format!("fallback_{}", field_name);
-    sec_req.object.meta.properties.insert(key, Value::Bool(true));
+    sec_req.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
 /// Add overall processing metadata (equivalent to TypeScript MapVisitor + FallbackVisitor)
 fn add_processing_metadata(sec_req: &mut SecurityRequirementElement) {
-    sec_req.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
-    sec_req.object.meta.properties.insert("mapVisitor".to_string(), Value::Bool(true));
-    sec_req.object.meta.properties.insert("fallbackVisitor".to_string(), Value::Bool(true));
-    sec_req.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), Value::Bool(true));
-    sec_req.object.meta.properties.insert("fieldPatternPredicate".to_string(), Value::String("isNonEmptyString".to_string()));
+    sec_req.object.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
+    sec_req.object.meta.properties.insert("mapVisitor".to_string(), SimpleValue::bool(true));
+    sec_req.object.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::bool(true));
+    sec_req.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::bool(true));
+    sec_req.object.meta.properties.insert("fieldPatternPredicate".to_string(), SimpleValue::string("isNonEmptyString".to_string()));
     
     // Add SecurityRequirement specific classes
     sec_req.object.classes.content.push(Element::String(StringElement::new("security-requirement")));
@@ -307,15 +305,15 @@ fn add_processing_metadata(sec_req: &mut SecurityRequirementElement) {
 
 /// Add spec path metadata (equivalent to TypeScript specPath)
 fn add_spec_path_metadata(sec_req: &mut SecurityRequirementElement) {
-    sec_req.object.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("value".to_string())
+    sec_req.object.meta.properties.insert("specPath".to_string(), SimpleValue::array(vec![
+        SimpleValue::string("value".to_string())
     ]));
 }
 
 /// Validate SecurityRequirement structure
 fn validate_security_requirement(sec_req: &mut SecurityRequirementElement) -> Option<()> {
     // SecurityRequirement can be empty (no security) or contain security schemes
-    sec_req.object.meta.properties.insert("validSecurityRequirement".to_string(), Value::Bool(true));
+    sec_req.object.meta.properties.insert("validSecurityRequirement".to_string(), SimpleValue::bool(true));
     Some(())
 }
 
@@ -391,7 +389,7 @@ mod tests {
         assert!(sec_req.object.meta.properties.contains_key("canSupportSpecificationExtensions"));
         assert_eq!(
             sec_req.object.meta.properties.get("fieldPatternPredicate"),
-            Some(&Value::String("isNonEmptyString".to_string()))
+            Some(&SimpleValue::string("isNonEmptyString".to_string()))
         );
         
         // Verify element class
@@ -405,9 +403,9 @@ mod tests {
         
         // Verify spec path metadata
         assert!(sec_req.object.meta.properties.contains_key("specPath"));
-        if let Some(Value::Array(spec_path)) = sec_req.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(spec_path)) = sec_req.object.meta.properties.get("specPath") {
             assert_eq!(spec_path.len(), 1);
-            assert_eq!(spec_path[0], Value::String("value".to_string()));
+            assert_eq!(spec_path[0], SimpleValue::string("value".to_string()));
         }
         
         // Verify fixed field metadata
@@ -427,7 +425,7 @@ mod tests {
                         assert!(scopes_arr.meta.properties.contains_key("scopes-array"));
                         assert_eq!(
                             scopes_arr.meta.properties.get("security-scheme"),
-                            Some(&Value::String(key.content.clone()))
+                            Some(&SimpleValue::string(key.content.clone()))
                         );
                     }
                 }
@@ -494,11 +492,11 @@ mod tests {
         }));
         assert_eq!(
             sec_req.object.meta.properties.get("referenced-element"),
-            Some(&Value::String("securityRequirement".to_string()))
+            Some(&SimpleValue::string("securityRequirement".to_string()))
         );
         assert_eq!(
             sec_req.object.meta.properties.get("reference-path"),
-            Some(&Value::String("#/components/securityRequirements/BasicAuth".to_string()))
+            Some(&SimpleValue::string("#/components/securityRequirements/BasicAuth".to_string()))
         );
     }
 
@@ -581,7 +579,7 @@ mod tests {
         assert!(sec_req.object.meta.properties.contains_key("mapVisitor"));
         assert_eq!(
             sec_req.object.meta.properties.get("fieldPatternPredicate"),
-            Some(&Value::String("isNonEmptyString".to_string()))
+            Some(&SimpleValue::string("isNonEmptyString".to_string()))
         );
         
         // 2. Specification extensions support
@@ -609,7 +607,7 @@ mod tests {
                         assert!(scopes_arr.meta.properties.contains_key("scopes-array"));
                         assert_eq!(
                             scopes_arr.meta.properties.get("security-scheme"),
-                            Some(&Value::String(key.content.clone()))
+                            Some(&SimpleValue::string(key.content.clone()))
                         );
                     }
                 }
@@ -644,14 +642,14 @@ mod tests {
         }));
         assert_eq!(
             sec_req.object.meta.properties.get("element-type"),
-            Some(&Value::String("securityRequirement".to_string()))
+            Some(&SimpleValue::string("securityRequirement".to_string()))
         );
         
         // 7. Spec path metadata (equivalent to TypeScript specPath = always(['value']))
         assert!(sec_req.object.meta.properties.contains_key("specPath"));
-        if let Some(Value::Array(spec_path)) = sec_req.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(spec_path)) = sec_req.object.meta.properties.get("specPath") {
             assert_eq!(spec_path.len(), 1);
-            assert_eq!(spec_path[0], Value::String("value".to_string()));
+            assert_eq!(spec_path[0], SimpleValue::string("value".to_string()));
         }
         
         // 8. Processing metadata

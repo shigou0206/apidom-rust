@@ -1,50 +1,12 @@
-/*!
- * OpenAPI 3.0 Link Element Builder
- * 
- * This module provides comprehensive Link element building functionality
- * equivalent to the TypeScript LinkVisitor. It supports:
- * - FixedFieldsVisitor pattern with field-level processing
- * - MapVisitor pattern for parameters (equivalent to ParametersVisitor)
- * - OperationRef processing with reference-value class injection
- * - Reference element marking for operationId/operationRef
- * - Specification extensions support (x-* fields)
- * - Fallback behavior for unknown fields
- * - Type conversion and validation
- * - Comprehensive metadata injection with classes and spec path
- * - Mutual exclusion validation (operationId vs operationRef)
- */
-
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
-use serde_json::Value;
 use crate::elements::link::{LinkElement, LinkParametersElement};
+use apidom_ast::*;
 
-/// Build a basic LinkElement from a generic Element
-/// 
-/// Example input:
-/// {
-///   "operationId": "getUserById",
-///   "parameters": {
-///     "userId": "$request.path.id"
-///   },
-///   "description": "Get user by ID"
-/// }
 pub fn build_link(element: &Element) -> Option<LinkElement> {
     let object = element.as_object()?.clone();
     Some(LinkElement::with_content(object))
 }
 
-/// Build and decorate LinkElement with enhanced visitor pattern features
-/// 
-/// This function provides equivalent functionality to the TypeScript LinkVisitor:
-/// - FixedFieldsVisitor pattern with field-level access and validation
-/// - MapVisitor pattern for parameters processing (ParametersVisitor equivalent)
-/// - OperationRef processing with reference-value class injection
-/// - Reference element marking when operationId or operationRef are present
-/// - Specification extensions support (x-* fields)
-/// - Fallback behavior for unknown fields
-/// - Mutual exclusion validation (operationId vs operationRef)
-/// - Comprehensive metadata injection with classes and spec path
+
 pub fn build_and_decorate_link<F>(
     element: &Element,
     mut folder: Option<&mut F>
@@ -69,8 +31,9 @@ where
     }
     
     // Track reference fields for reference-element marking
-    let mut has_operation_ref = false;
     let mut has_operation_id = false;
+    let mut has_operation_ref = false;
+    let mut _has_validation_error = false;
     
     // Process all object members with FixedFieldsVisitor pattern
     for member in &obj.content {
@@ -79,33 +42,35 @@ where
             let value = member.value.as_ref();
             
             match key.as_str() {
-                // Fixed fields - FixedFieldsVisitor processing
-                "operationRef" => {
-                    if let Some(string_elem) = convert_to_string_element(value) {
-                        // Add reference-value class (equivalent to OperationRefVisitor)
-                        let mut ref_elem = string_elem;
-                        ref_elem.add_class("reference-value");
-                        // Also add to metadata for proper tracking
-                        ref_elem.meta.properties.insert("class".to_string(), Value::String("reference-value".to_string()));
-                        link.set_operation_ref(ref_elem);
-                        add_fixed_field_metadata(&mut link, "operationRef");
-                        has_operation_ref = true;
-                    } else {
-                        add_validation_error_metadata(&mut link, "operationRef", "Expected string value");
-                    }
-                }
                 "operationId" => {
-                    if let Some(string_elem) = convert_to_string_element(value) {
+                    if let Element::String(string_elem) = value {
                         // Add reference-value class (equivalent to OperationRefVisitor)
-                        let mut ref_elem = string_elem;
-                        ref_elem.add_class("reference-value");
-                        // Also add to metadata for proper tracking
-                        ref_elem.meta.properties.insert("class".to_string(), Value::String("reference-value".to_string()));
+                        let mut ref_elem = string_elem.clone();
+                        ref_elem.meta.properties.insert(
+                            "class".to_string(),
+                            SimpleValue::string("reference-value".to_string())
+                        );
                         link.set_operation_id(ref_elem);
                         add_fixed_field_metadata(&mut link, "operationId");
                         has_operation_id = true;
                     } else {
                         add_validation_error_metadata(&mut link, "operationId", "Expected string value");
+                        _has_validation_error = true;
+                    }
+                }
+                "operationRef" => {
+                    if let Element::String(string_elem) = value {
+                        // Add reference-value class (equivalent to OperationRefVisitor)
+                        let mut ref_elem = string_elem.clone();
+                        ref_elem.meta.properties.insert(
+                            "class".to_string(),
+                            SimpleValue::string("reference-value".to_string())
+                        );
+                        link.set_operation_ref(ref_elem);
+                        add_fixed_field_metadata(&mut link, "operationRef");
+                        has_operation_ref = true;
+                    } else {
+                        add_validation_error_metadata(&mut link, "operationRef", "Expected string value");
                     }
                 }
                 "parameters" => {
@@ -184,8 +149,10 @@ where
         }
     }
     
+    // Add validation error metadata if needed
+    // (Note: specific validation errors are already added by add_validation_error_metadata)
+    
     // Add reference-element class if operationId or operationRef are present
-    // (equivalent to TypeScript LinkVisitor.ObjectElement logic)
     if has_operation_id || has_operation_ref {
         link.object.add_class("reference-element");
         add_reference_element_metadata(&mut link);
@@ -201,7 +168,7 @@ where
     link.object.add_class("link");
     link.object.meta.properties.insert(
         "element-type".to_string(),
-        Value::String("link".to_string())
+        SimpleValue::string("link".to_string())
     );
     
     Some(link)
@@ -217,17 +184,17 @@ where
     F: Fold,
 {
     let mut link_params = LinkParametersElement::new();
+    link_params.object.element = "linkParameters".to_string();
     
     // Add MapVisitor metadata
     add_map_visitor_metadata(&mut link_params);
     
-    // Process each parameter with MapVisitor pattern
+    // Process each parameter
     for member in &params_obj.content {
         if let Element::String(key_str) = member.key.as_ref() {
             let key = &key_str.content;
             let value = member.value.as_ref();
             
-            // Process parameter value (typically a string expression)
             let processed_value = if let Some(ref mut f) = folder {
                 f.fold_element(value.clone())
             } else {
@@ -235,8 +202,6 @@ where
             };
             
             link_params.object.set(key, processed_value);
-            
-            // Add parameter metadata
             add_parameter_metadata(&mut link_params, key);
         }
     }
@@ -257,7 +222,8 @@ fn convert_to_string_element(element: &Element) -> Option<StringElement> {
 /// Add metadata for fixed fields
 fn add_fixed_field_metadata(link: &mut LinkElement, field_name: &str) {
     let key = format!("fixedField_{}", field_name);
-    link.object.meta.properties.insert(key, Value::Bool(true));
+    link.object.meta.properties.insert(key, SimpleValue::bool(true));
+    link.object.classes.content.push(Element::String(StringElement::new("fixed-field")));
 }
 
 /// Add metadata for references
@@ -265,43 +231,55 @@ fn add_ref_metadata(link: &mut LinkElement, ref_path: &str) {
     link.object.add_class("reference");
     link.object.meta.properties.insert(
         "referenced-element".to_string(),
-        Value::String("link".to_string())
+        SimpleValue::string("link".to_string())
     );
     link.object.meta.properties.insert(
         "reference-path".to_string(),
-        Value::String(ref_path.to_string())
+        SimpleValue::string(ref_path.to_string())
     );
 }
 
 /// Add metadata for specification extensions
 fn add_specification_extension_metadata(link: &mut LinkElement, field_name: &str) {
     let key = format!("specificationExtension_{}", field_name);
-    link.object.meta.properties.insert(key, Value::Bool(true));
+    link.object.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add metadata for fallback handling
 fn add_fallback_metadata(link: &mut LinkElement, field_name: &str) {
     let key = format!("fallback_{}", field_name);
-    link.object.meta.properties.insert(key, Value::Bool(true));
+    link.object.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add metadata for validation errors
 fn add_validation_error_metadata(link: &mut LinkElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
-    link.object.meta.properties.insert(key, Value::String(error_msg.to_string()));
+    link.object.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));
+    
+    // Add general validation error for the link with field-specific message
+    let general_error_msg = match field_name {
+        "operationId" => format!("Invalid operationId: {}", error_msg),
+        "operationRef" => format!("Invalid operationRef: {}", error_msg),
+        _ => format!("Invalid {}: {}", field_name, error_msg),
+    };
+    
+    link.object.meta.properties.insert(
+        "validationError_link".to_string(), 
+        SimpleValue::string(general_error_msg)
+    );
 }
 
 /// Add metadata for reference element marking
 fn add_reference_element_metadata(link: &mut LinkElement) {
-    link.object.meta.properties.insert("hasReferenceFields".to_string(), Value::Bool(true));
+    link.object.meta.properties.insert("hasReferenceFields".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add overall processing metadata (equivalent to TypeScript FixedFieldsVisitor + FallbackVisitor)
 fn add_processing_metadata(link: &mut LinkElement) {
-    link.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
-    link.object.meta.properties.insert("fixedFieldsVisitor".to_string(), Value::Bool(true));
-    link.object.meta.properties.insert("fallbackVisitor".to_string(), Value::Bool(true));
-    link.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), Value::Bool(true));
+    link.object.meta.properties.insert("processed".to_string(), SimpleValue::Bool(true));
+    link.object.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::Bool(true));
+    link.object.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::Bool(true));
+    link.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::Bool(true));
     
     // Add Link specific classes
     link.object.classes.content.push(Element::String(StringElement::new("link")));
@@ -309,28 +287,32 @@ fn add_processing_metadata(link: &mut LinkElement) {
 
 /// Add spec path metadata (equivalent to TypeScript specPath)
 fn add_spec_path_metadata(link: &mut LinkElement) {
-    link.object.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("document".to_string()),
-        Value::String("objects".to_string()),
-        Value::String("Link".to_string())
+    link.object.meta.properties.insert("specPath".to_string(), SimpleValue::Array(vec![
+        SimpleValue::String("document".to_string()),
+        SimpleValue::String("objects".to_string()),
+        SimpleValue::String("Link".to_string())
     ]));
 }
 
 /// Add MapVisitor metadata for LinkParametersElement
 fn add_map_visitor_metadata(link_params: &mut LinkParametersElement) {
-    link_params.object.meta.properties.insert("mapVisitor".to_string(), Value::Bool(true));
-    link_params.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
+    link_params.object.meta.properties.insert("mapVisitor".to_string(), SimpleValue::bool(true));
+    link_params.object.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
     
     // Add spec path for parameters
-    link_params.object.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("value".to_string())
+    link_params.object.meta.properties.insert("specPath".to_string(), SimpleValue::array(vec![
+        SimpleValue::string("value".to_string())
     ]));
+    
+    // Add linkParameters class
+    link_params.object.classes.content.push(Element::String(StringElement::new("link-parameters")));
 }
 
 /// Add metadata for individual parameters
 fn add_parameter_metadata(link_params: &mut LinkParametersElement, param_name: &str) {
+    // Add metadata for individual parameter processing (TypeScript ParametersVisitor pattern)
     let key = format!("parameter_{}", param_name);
-    link_params.object.meta.properties.insert(key, Value::Bool(true));
+    link_params.object.meta.properties.insert(key, SimpleValue::string("processed".to_string()));
 }
 
 #[cfg(test)]
@@ -382,11 +364,11 @@ mod tests {
         assert!(link.object.meta.properties.contains_key("fixedField_parameters"));
         
         // Verify spec path metadata
-        if let Some(Value::Array(spec_path)) = link.object.meta.properties.get("specPath") {
-            assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("Link".to_string()));
+        if let Some(SimpleValue::Array(spec_path)) = link.object.meta.properties.get("specPath") {
+            assert!(spec_path.len() == 3);
+            assert!(spec_path[0] == SimpleValue::String("document".to_string()));
+            assert!(spec_path[1] == SimpleValue::String("objects".to_string()));
+            assert!(spec_path[2] == SimpleValue::String("Link".to_string()));
         }
         
         // Verify element class
@@ -423,7 +405,7 @@ mod tests {
         if let Some(op_id) = link.operation_id() {
             // Check metadata for class information since StringElement doesn't have classes field
             assert!(op_id.meta.properties.contains_key("class"));
-            if let Some(Value::String(class_name)) = op_id.meta.properties.get("class") {
+            if let Some(SimpleValue::String(class_name)) = op_id.meta.properties.get("class") {
                 assert_eq!(class_name, "reference-value");
             }
         }
@@ -550,7 +532,7 @@ mod tests {
         
         // Verify validation error for mutual exclusion
         assert!(link.object.meta.properties.contains_key("validationError_link"));
-        if let Some(Value::String(error_msg)) = link.object.meta.properties.get("validationError_link") {
+        if let Some(SimpleValue::String(error_msg)) = link.object.meta.properties.get("validationError_link") {
             assert!(error_msg.contains("mutually exclusive"));
         }
     }
@@ -575,11 +557,11 @@ mod tests {
         }));
         assert_eq!(
             link.object.meta.properties.get("referenced-element"),
-            Some(&Value::String("link".to_string()))
+            Some(&SimpleValue::String("link".to_string()))
         );
         assert_eq!(
             link.object.meta.properties.get("reference-path"),
-            Some(&Value::String("#/components/links/UserLink".to_string()))
+            Some(&SimpleValue::String("#/components/links/UserLink".to_string()))
         );
     }
 
@@ -637,7 +619,7 @@ mod tests {
         if let Some(op_ref) = link.operation_ref() {
             // Check metadata for class information since StringElement doesn't have classes field
             assert!(op_ref.meta.properties.contains_key("class"));
-            if let Some(Value::String(class_name)) = op_ref.meta.properties.get("class") {
+            if let Some(SimpleValue::String(class_name)) = op_ref.meta.properties.get("class") {
                 assert_eq!(class_name, "reference-value");
             }
         }
@@ -675,11 +657,11 @@ mod tests {
         assert!(link.object.get("customLinkConfig").is_some());
         
         // 7. Spec path metadata
-        if let Some(Value::Array(spec_path)) = link.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(spec_path)) = link.object.meta.properties.get("specPath") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("Link".to_string()));
+            assert_eq!(spec_path[0], SimpleValue::String("document".to_string()));
+            assert_eq!(spec_path[1], SimpleValue::String("objects".to_string()));
+            assert_eq!(spec_path[2], SimpleValue::String("Link".to_string()));
         }
         
         // 8. Element classification
@@ -692,7 +674,7 @@ mod tests {
         }));
         assert_eq!(
             link.object.meta.properties.get("element-type"),
-            Some(&Value::String("link".to_string()))
+            Some(&SimpleValue::String("link".to_string()))
         );
         
         // 9. Overall processing metadata
@@ -708,5 +690,76 @@ mod tests {
         assert!(link_params.get("userId").is_some());
         assert!(link_params.get("includeProfile").is_some());
         assert!(link_params.get("apiKey").is_some());
+    }
+
+    #[test]
+    fn test_build_link_with_validation_error() {
+        let mut obj = ObjectElement::new();
+        obj.set("operationId", Element::Number(NumberElement {
+            element: "number".to_string(),
+            meta: Default::default(),
+            attributes: Default::default(),
+            content: 123.0,
+        }));
+
+        let link = build_and_decorate_link(&Element::Object(obj), None::<&mut OpenApiBuilderFolder>).unwrap();
+
+        // Check validation error metadata
+        assert!(link.object.meta.properties.contains_key("validationError_link"));
+        if let Some(SimpleValue::String(error_msg)) = link.object.meta.properties.get("validationError_link") {
+            assert!(error_msg.contains("Invalid operationId"));
+        }
+    }
+
+    #[test]
+    fn test_build_link_with_spec_path() {
+        let mut obj = ObjectElement::new();
+        obj.set("description", Element::String(StringElement::new("Test link")));
+
+        let link = build_and_decorate_link(&Element::Object(obj), None::<&mut OpenApiBuilderFolder>).unwrap();
+
+        // Check spec path metadata
+        if let Some(SimpleValue::Array(spec_path)) = link.object.meta.properties.get("spec-path") {
+            assert_eq!(spec_path.len(), 3);
+            assert!(matches!(&spec_path[0], SimpleValue::String(s) if s == "document"));
+            assert!(matches!(&spec_path[1], SimpleValue::String(s) if s == "objects"));
+            assert!(matches!(&spec_path[2], SimpleValue::String(s) if s == "Link"));
+        }
+    }
+
+    #[test]
+    fn test_build_link_with_reference() {
+        let mut obj = ObjectElement::new();
+        obj.set("$ref", Element::String(StringElement::new("#/components/links/UserLink")));
+
+        let link = build_and_decorate_link(&Element::Object(obj), None::<&mut OpenApiBuilderFolder>).unwrap();
+
+        // Check reference metadata
+        assert_eq!(
+            link.object.meta.properties.get("referenced-element"),
+            Some(&SimpleValue::string("link".to_string()))
+        );
+        assert_eq!(
+            link.object.meta.properties.get("reference-path"),
+            Some(&SimpleValue::string("#/components/links/UserLink".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_build_link_with_operation_ref() {
+        let mut obj = ObjectElement::new();
+        obj.set("operationRef", Element::String(StringElement::new("#/paths/~1users/get")));
+
+        let link = build_and_decorate_link(&Element::Object(obj), None::<&mut OpenApiBuilderFolder>).unwrap();
+
+        // Check operation ref metadata
+        if let Some(op_ref) = link.object.get("operationRef") {
+            if let Element::String(op_ref_str) = op_ref {
+                assert_eq!(
+                    op_ref_str.meta.properties.get("class"),
+                    Some(&SimpleValue::string("reference-value".to_string()))
+                );
+            }
+        }
     }
 }

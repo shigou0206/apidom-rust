@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use super::contact::ContactElement;
 use super::license::LicenseElement;
 

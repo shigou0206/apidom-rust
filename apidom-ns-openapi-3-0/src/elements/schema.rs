@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use apidom_ns_json_schema_draft_4::elements::json_schema::JSONSchemaDraft4Element;
 
 /// OpenAPI Schema Element based on JSON Schema Draft-4

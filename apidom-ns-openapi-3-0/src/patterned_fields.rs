@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 use regex::Regex;
-use serde_json::Value;
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 
 /// Comprehensive patterned fields framework for OpenAPI specifications
 /// Handles:
@@ -107,9 +106,9 @@ pub struct PatternContext {
     /// Current processing path
     pub current_path: Vec<String>,
     /// Available variables for runtime expressions
-    pub variables: HashMap<String, Value>,
+    pub variables: HashMap<String, SimpleValue>,
     /// Processing metadata
-    pub metadata: HashMap<String, Value>,
+    pub metadata: HashMap<String, SimpleValue>,
 }
 
 /// Processed field result
@@ -124,7 +123,7 @@ pub struct ProcessedField {
     /// Extracted pattern information
     pub pattern_info: PatternInfo,
     /// Additional metadata
-    pub metadata: HashMap<String, Value>,
+    pub metadata: HashMap<String, SimpleValue>,
 }
 
 /// Pattern information extracted from processing
@@ -139,7 +138,7 @@ pub struct PatternInfo {
     /// Pattern complexity score
     pub complexity: usize,
     /// Additional pattern metadata
-    pub metadata: HashMap<String, Value>,
+    pub metadata: HashMap<String, SimpleValue>,
 }
 
 /// Pattern parameter extracted from a pattern
@@ -150,7 +149,7 @@ pub struct PatternParameter {
     /// Parameter type (if determinable)
     pub param_type: Option<String>,
     /// Parameter constraints
-    pub constraints: HashMap<String, Value>,
+    pub constraints: HashMap<String, SimpleValue>,
     /// Parameter position in pattern
     pub position: usize,
 }
@@ -167,7 +166,7 @@ pub struct CompiledPattern {
     /// Extracted parameters
     pub parameters: Vec<PatternParameter>,
     /// Compilation metadata
-    pub metadata: HashMap<String, Value>,
+    pub metadata: HashMap<String, SimpleValue>,
 }
 
 /// Pattern processing errors

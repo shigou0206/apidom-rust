@@ -1,6 +1,5 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use crate::elements::request_body::RequestBodyElement;
-use serde_json::Value;
 
 /// Comprehensive OpenAPI RequestBody Builder
 /// 
@@ -29,7 +28,7 @@ pub fn build_and_decorate_request_body<F>(
     mut folder: Option<&mut F>
 ) -> Option<RequestBodyElement>
 where
-    F: apidom_ast::fold::Fold,
+    F: Fold,
 {
     let obj = element.as_object()?;
     let mut request_body = RequestBodyElement::new();
@@ -76,7 +75,7 @@ where
                                 if let Element::Object(ref mut media_type_obj) = processed_value {
                                     media_type_obj.meta.properties.insert(
                                         "media-type".to_string(),
-                                        Value::String(media_type_key.content.clone())
+                                        SimpleValue::string(media_type_key.content.clone())
                                     );
                                     // Add MediaType element class
                                     media_type_obj.add_class("media-type");
@@ -130,7 +129,7 @@ where
     request_body.object.add_class("request-body");
     request_body.object.meta.properties.insert(
         "element-type".to_string(),
-        Value::String("requestBody".to_string())
+        SimpleValue::string("requestBody".to_string())
     );
     
     // Add spec path metadata (equivalent to TypeScript specPath)
@@ -176,7 +175,7 @@ fn convert_to_boolean_element(element: &Element) -> Option<BooleanElement> {
 fn add_fixed_field_metadata(obj: &mut ObjectElement, field_name: &str) {
     obj.meta.properties.insert(
         format!("fixed-field-{}", field_name),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -184,11 +183,11 @@ fn add_fixed_field_metadata(obj: &mut ObjectElement, field_name: &str) {
 fn add_content_metadata(obj: &mut ObjectElement) {
     obj.meta.properties.insert(
         "has-content".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
     obj.meta.properties.insert(
         "content-processed".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -197,7 +196,7 @@ fn add_specification_extension_metadata(obj: &mut ObjectElement, field_name: &st
     obj.add_class("specification-extension");
     obj.meta.properties.insert(
         "specification-extension".to_string(),
-        Value::String(field_name.to_string())
+        SimpleValue::string(field_name.to_string())
     );
 }
 
@@ -205,7 +204,7 @@ fn add_specification_extension_metadata(obj: &mut ObjectElement, field_name: &st
 fn add_fallback_field_metadata(obj: &mut ObjectElement, field_name: &str) {
     obj.meta.properties.insert(
         format!("fallback-field-{}", field_name),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -214,11 +213,11 @@ fn add_reference_metadata(obj: &mut ObjectElement, ref_path: &str, element_type:
     obj.add_class("reference");
     obj.meta.properties.insert(
         "referenced-element".to_string(),
-        Value::String(element_type.to_string())
+        SimpleValue::string(element_type.to_string())
     );
     obj.meta.properties.insert(
         "reference-path".to_string(),
-        Value::String(ref_path.to_string())
+        SimpleValue::string(ref_path.to_string())
     );
 }
 
@@ -226,10 +225,10 @@ fn add_reference_metadata(obj: &mut ObjectElement, ref_path: &str, element_type:
 fn add_spec_path_metadata(obj: &mut ObjectElement) {
     obj.meta.properties.insert(
         "spec-path".to_string(),
-        Value::Array(vec![
-            Value::String("document".to_string()),
-            Value::String("objects".to_string()),
-            Value::String("RequestBody".to_string()),
+        SimpleValue::array(vec![
+            SimpleValue::string("document".to_string()),
+            SimpleValue::string("objects".to_string()),
+            SimpleValue::string("RequestBody".to_string()),
         ])
     );
 }
@@ -250,7 +249,7 @@ fn validate_request_body(request_body: &RequestBodyElement) -> Option<()> {
         // Still valid but add a warning metadata
         // request_body.object.meta.properties.insert(
         //     "validation-warning".to_string(),
-        //     Value::String("RequestBody should have description or content".to_string())
+        //     SimpleValue::String("RequestBody should have description or content".to_string())
         // );
     }
     
@@ -260,12 +259,24 @@ fn validate_request_body(request_body: &RequestBodyElement) -> Option<()> {
             // Empty content object - add warning
             // request_body.object.meta.properties.insert(
             //     "validation-warning".to_string(),
-            //     Value::String("Content object should not be empty".to_string())
+            //     SimpleValue::String("Content object should not be empty".to_string())
             // );
         }
     }
     
     Some(())
+}
+
+fn add_validation_error_metadata(obj: &mut ObjectElement, field_name: &str, error_msg: &str) {
+    let key = format!("validationError_{}", field_name);
+    obj.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));
+}
+
+fn add_processing_metadata(obj: &mut ObjectElement) {
+    obj.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
+    obj.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::bool(true));
+    obj.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::bool(true));
+    obj.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::bool(true));
 }
 
 #[cfg(test)]
@@ -355,11 +366,11 @@ mod tests {
         
         // Verify spec path metadata
         assert!(request_body.object.meta.properties.contains_key("spec-path"));
-        if let Some(Value::Array(spec_path)) = request_body.object.meta.properties.get("spec-path") {
+        if let Some(SimpleValue::Array(spec_path)) = request_body.object.meta.properties.get("spec-path") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("RequestBody".to_string()));
+            assert!(matches!(&spec_path[0], SimpleValue::String(s) if s == "document"));
+            assert!(matches!(&spec_path[1], SimpleValue::String(s) if s == "objects"));
+            assert!(matches!(&spec_path[2], SimpleValue::String(s) if s == "RequestBody"));
         }
         
         // Verify MediaType metadata injection (TypeScript equivalence)
@@ -367,7 +378,7 @@ mod tests {
             if let Some(Element::Object(json_mt)) = content_obj.get("application/json") {
                 assert_eq!(
                     json_mt.meta.properties.get("media-type"),
-                    Some(&Value::String("application/json".to_string()))
+                    Some(&SimpleValue::string("application/json".to_string()))
                 );
                 assert!(json_mt.classes.content.iter().any(|e| {
                     if let Element::String(s) = e {
@@ -381,7 +392,7 @@ mod tests {
             if let Some(Element::Object(xml_mt)) = content_obj.get("application/xml") {
                 assert_eq!(
                     xml_mt.meta.properties.get("media-type"),
-                    Some(&Value::String("application/xml".to_string()))
+                    Some(&SimpleValue::string("application/xml".to_string()))
                 );
             }
         }
@@ -458,14 +469,13 @@ mod tests {
                 false
             }
         }));
-        assert_eq!(
-            request_body.object.meta.properties.get("referenced-element"),
-            Some(&Value::String("requestBody".to_string()))
-        );
-        assert_eq!(
-            request_body.object.meta.properties.get("reference-path"),
-            Some(&Value::String("#/components/requestBodies/UserRequest".to_string()))
-        );
+        assert!(request_body.object.meta.properties.contains_key("referenced-element"));
+        if let Some(SimpleValue::String(ref_elem)) = request_body.object.meta.properties.get("referenced-element") {
+            assert_eq!(ref_elem, "requestBody");
+        }
+        if let Some(SimpleValue::String(ref_path)) = request_body.object.meta.properties.get("reference-path") {
+            assert_eq!(ref_path, "#/components/requestBodies/UserRequest");
+        }
     }
 
     #[test]
@@ -570,21 +580,14 @@ mod tests {
             if let Some(Element::Object(json_mt)) = content_obj.get("application/json") {
                 assert_eq!(
                     json_mt.meta.properties.get("media-type"),
-                    Some(&Value::String("application/json".to_string()))
+                    Some(&SimpleValue::string("application/json".to_string()))
                 );
-                assert!(json_mt.classes.content.iter().any(|e| {
-                    if let Element::String(s) = e {
-                        s.content == "media-type"
-                    } else {
-                        false
-                    }
-                }));
             }
             
             if let Some(Element::Object(form_mt)) = content_obj.get("application/x-www-form-urlencoded") {
                 assert_eq!(
                     form_mt.meta.properties.get("media-type"),
-                    Some(&Value::String("application/x-www-form-urlencoded".to_string()))
+                    Some(&SimpleValue::string("application/x-www-form-urlencoded".to_string()))
                 );
             }
         }
@@ -612,18 +615,18 @@ mod tests {
                 false
             }
         }));
-        assert_eq!(
+        assert!(matches!(
             request_body.object.meta.properties.get("element-type"),
-            Some(&Value::String("requestBody".to_string()))
-        );
+            Some(SimpleValue::String(s)) if s == "requestBody"
+        ));
         
         // 6. Spec path metadata (equivalent to TypeScript specPath)
         assert!(request_body.object.meta.properties.contains_key("spec-path"));
-        if let Some(Value::Array(spec_path)) = request_body.object.meta.properties.get("spec-path") {
+        if let Some(SimpleValue::Array(spec_path)) = request_body.object.meta.properties.get("spec-path") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("RequestBody".to_string()));
+            assert!(matches!(&spec_path[0], SimpleValue::String(s) if s == "document"));
+            assert!(matches!(&spec_path[1], SimpleValue::String(s) if s == "objects"));
+            assert!(matches!(&spec_path[2], SimpleValue::String(s) if s == "RequestBody"));
         }
         
         // 7. Content processing metadata

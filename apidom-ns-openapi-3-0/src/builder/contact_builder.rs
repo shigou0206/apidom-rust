@@ -1,75 +1,4 @@
-//! # Contact Builder Module
-//!
-//! This module provides enhanced contact building functionality that is functionally equivalent
-//! to the TypeScript `ContactVisitor` class. It implements visitor pattern features including
-//! fixed fields support, specification extensions, fallback behavior, and comprehensive metadata injection.
-//!
-//! ## Features
-//!
-//! ### 1. Fixed Fields Support (FixedFieldsVisitor equivalent)
-//! - Processes standard OpenAPI Contact fields: `name`, `url`, `email`
-//! - Validates field types and provides type conversion
-//! - Injects metadata for fixed field processing
-//!
-//! ### 2. Specification Extensions Support
-//! - Handles `x-*` prefixed extension fields
-//! - Preserves extension values in the contact object
-//! - Adds metadata to track specification extensions
-//!
-//! ### 3. Fallback Behavior (FallbackVisitor equivalent)
-//! - Preserves unknown fields that don't match fixed fields or extensions
-//! - Adds metadata to track fallback processing
-//! - Maintains full compatibility with custom properties
-//!
-//! ### 4. Reference Support
-//! - Handles `$ref` fields for contact references
-//! - Adds metadata for reference tracking
-//! - Supports recursive resolution when combined with folders
-//!
-//! ### 5. Type Conversion and Validation
-//! - Converts number and boolean values to strings when needed
-//! - Validates that contacts have at least one contact method
-//! - Provides comprehensive error reporting through metadata
-//!
-//! ### 6. Recursive Folding
-//! - Supports optional folder parameter for recursive element processing
-//! - Compatible with any type implementing the `Fold` trait
-//! - Enables complex document transformation workflows
-//!
-//! ## Usage Examples
-//!
-//! ```rust
-//! use apidom_ast::fold::DefaultFolder;
-//! use apidom_ast::minim_model::*;
-//! use apidom_ns_openapi_3_0::builder::contact_builder::*;
-//!
-//! // Create a sample element for testing
-//! let mut obj = ObjectElement::new();
-//! obj.set("name", Element::String(StringElement::new("John Doe")));
-//! let element = Element::Object(obj);
-//!
-//! // Basic usage
-//! let contact = build_contact(&element);
-//!
-//! // Enhanced usage with visitor pattern features
-//! let mut folder = DefaultFolder;
-//! let contact = build_and_decorate_contact(&element, Some(&mut folder));
-//! ```
-//!
-//! ## TypeScript Equivalence
-//!
-//! This implementation provides feature parity with the TypeScript `ContactVisitor` class:
-//! - ✅ Fixed fields processing
-//! - ✅ Specification extensions support
-//! - ✅ Fallback behavior for unknown fields
-//! - ✅ Recursive folding capability
-//! - ✅ Comprehensive metadata injection
-//! - ✅ Type validation and conversion
-//! - ✅ Reference handling
-
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
-use serde_json::Value;
+use apidom_ast::*;
 use crate::elements::contact::ContactElement;
 
 /// Basic contact builder - equivalent to simple constructor
@@ -172,42 +101,42 @@ fn convert_to_string_element(element: &Element) -> Option<StringElement> {
 /// Add metadata for fixed fields
 fn add_fixed_field_metadata(contact: &mut ContactElement, field_name: &str) {
     let key = format!("fixedField_{}", field_name);
-    contact.object.meta.properties.insert(key, Value::Bool(true));
+    contact.object.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add metadata for type conversions
 fn add_type_conversion_metadata(contact: &mut ContactElement, field_name: &str, expected_type: &str) {
     let key = format!("typeConversion_{}", field_name);
-    contact.object.meta.properties.insert(key, Value::String(expected_type.to_string()));
+    contact.object.meta.properties.insert(key, SimpleValue::String(expected_type.to_string()));
 }
 
 /// Add metadata for specification extensions
 fn add_specification_extension_metadata(contact: &mut ContactElement, field_name: &str) {
     let key = format!("specificationExtension_{}", field_name);
-    contact.object.meta.properties.insert(key, Value::Bool(true));
+    contact.object.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add metadata for references
 fn add_ref_metadata(contact: &mut ContactElement, field_name: &str) {
     let key = format!("ref_{}", field_name);
-    contact.object.meta.properties.insert(key, Value::Bool(true));
+    contact.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
 /// Add metadata for fallback handling
 fn add_fallback_metadata(contact: &mut ContactElement, field_name: &str) {
     let key = format!("fallback_{}", field_name);
-    contact.object.meta.properties.insert(key, Value::Bool(true));
+    contact.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
 /// Add validation error metadata
 fn add_validation_error_metadata(contact: &mut ContactElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
-    contact.object.meta.properties.insert(key, Value::String(error_msg.to_string()));
+    contact.object.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));
 }
 
 /// Add overall processing metadata
 fn add_processing_metadata(contact: &mut ContactElement) {
-    contact.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
+    contact.object.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
 }
 
 /// Validate that contact has at least one contact method
@@ -223,14 +152,15 @@ fn validate_contact(contact: &mut ContactElement) {
             "Contact must have at least one of: name, url, or email"
         );
     } else {
-        contact.object.meta.properties.insert("validContact".to_string(), Value::Bool(true));
+        contact.object.meta.properties.insert("validContact".to_string(), SimpleValue::Bool(true));
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::DefaultFolder;
+    use apidom_ast::DefaultFolder;
+    use apidom_ast::{Element, ObjectElement, StringElement, BooleanElement, NumberElement, MetaElement, AttributesElement};
 
     #[test]
     fn test_basic_contact_builder() {

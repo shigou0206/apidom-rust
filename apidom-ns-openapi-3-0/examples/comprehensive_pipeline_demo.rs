@@ -1,5 +1,5 @@
 use serde_json::Value;
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use apidom_ns_openapi_3_0::fold_pass::{FoldPass, FoldPipeline};
 use apidom_ns_openapi_3_0::specification::create_openapi_specification;
 
@@ -110,8 +110,8 @@ fn demo_element_processing() -> Result<(), Box<dyn std::error::Error>> {
     
     if let Element::Object(obj) = &mut openapi_element {
         // Add processing metadata
-        obj.meta.properties.insert("processed".to_string(), Value::Bool(true));
-        obj.meta.properties.insert("processing_time".to_string(), Value::String("2024-01-01T12:00:00Z".to_string()));
+        obj.meta.properties.insert("processed".to_string(), SimpleValue::Bool(true));
+        obj.meta.properties.insert("processing_time".to_string(), SimpleValue::String("2024-01-01T12:00:00Z".to_string()));
         
         // Add classes for semantic enhancement
         obj.classes.content.push(Element::String(StringElement::new("openApi3_0")));
@@ -266,8 +266,8 @@ impl FoldPass for MetadataEnhancementPass {
             Element::Object(obj) => {
                 let mut new_obj = obj.clone();
                 if !new_obj.meta.properties.contains_key("enhanced") {
-                    new_obj.meta.properties.insert("enhanced".to_string(), Value::Bool(true));
-                    new_obj.meta.properties.insert("enhancement_pass".to_string(), Value::String(self.name.clone()));
+                    new_obj.meta.properties.insert("enhanced".to_string(), SimpleValue::Bool(true));
+                    new_obj.meta.properties.insert("enhancement_pass".to_string(), SimpleValue::String(self.name.clone()));
                     Some(Element::Object(new_obj))
                 } else {
                     None

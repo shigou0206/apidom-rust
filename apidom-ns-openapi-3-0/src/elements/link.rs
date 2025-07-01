@@ -1,5 +1,4 @@
-use apidom_ast::minim_model::*;
-use serde_json::Value;
+use apidom_ast::*;
 
 /// OpenAPI Link Parameters Element
 /// Equivalent to TypeScript LinkParametersElement with MapVisitor pattern
@@ -11,7 +10,10 @@ pub struct LinkParametersElement {
 impl LinkParametersElement {
     pub fn new() -> Self {
         let mut obj = ObjectElement::new();
-        obj.set_element_type("linkParameters");
+        obj.meta.properties.insert(
+            "element-type".to_string(),
+            SimpleValue::string("linkParameters".to_string())
+        );
         obj.classes.content.push(Element::String(StringElement::new("link-parameters")));
         Self { object: obj }
     }
@@ -63,14 +65,14 @@ impl LinkElement {
     pub fn operation(&self, resolver: &impl Fn(&str) -> Option<Element>) -> Option<Element> {
         // 首先尝试从 operationRef 的 meta 中获取并解析
         if let Some(op_ref) = self.operation_ref() {
-            if let Some(Value::String(ref_path)) = op_ref.meta.properties.get("operation") {
+            if let Some(SimpleValue::String(ref_path)) = op_ref.meta.properties.get("operation") {
                 return resolver(ref_path);
             }
         }
 
         // 然后尝试从 operationId 的 meta 中获取并解析
         if let Some(op_id) = self.operation_id() {
-            if let Some(Value::String(op_name)) = op_id.meta.properties.get("operation") {
+            if let Some(SimpleValue::String(op_name)) = op_id.meta.properties.get("operation") {
                 return resolver(op_name);
             }
         }
@@ -113,5 +115,22 @@ impl LinkElement {
 
     pub fn set_server(&mut self, val: ObjectElement) {
         self.object.set("server", Element::Object(val));
+    }
+}
+
+/// OpenAPI Link Server Element
+#[derive(Debug, Clone)]
+pub struct LinkServerElement {
+    pub object: ObjectElement,
+}
+
+impl LinkServerElement {
+    pub fn new() -> Self {
+        let mut obj = ObjectElement::new();
+        obj.meta.properties.insert(
+            "element-type".to_string(),
+            SimpleValue::string("linkServer".to_string())
+        );
+        Self { object: obj }
     }
 }

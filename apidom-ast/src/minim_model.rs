@@ -1,6 +1,6 @@
-use serde_json::Value;
 use std::collections::HashMap;
 use serde::Serialize;
+use crate::simple_value::SimpleValue;
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Element {
@@ -52,26 +52,24 @@ impl Element {
         }
     }
 
-    pub fn to_value(&self) -> Value {
+    pub fn to_value(&self) -> SimpleValue {
         match self {
-            Element::Null(_) => Value::Null,
-            Element::Boolean(e) => Value::Bool(e.content),
-            Element::Number(e) => serde_json::Number::from_f64(e.content)
-                .map(Value::Number)
-                .unwrap_or(Value::Null),
-            Element::String(e) => Value::String(e.content.clone()),
-            Element::Array(e) => Value::Array(e.content.iter().map(|el| el.to_value()).collect()),
+            Element::Null(_) => SimpleValue::null(),
+            Element::Boolean(e) => SimpleValue::bool(e.content),
+            Element::Number(e) => SimpleValue::float(e.content),
+            Element::String(e) => SimpleValue::string(e.content.clone()),
+            Element::Array(e) => SimpleValue::array(e.content.iter().map(|el| el.to_value()).collect()),
             Element::Object(e) => e.to_value(),
-            Element::Member(_) => Value::Null,
-            Element::Ref(e) => Value::String(e.path.clone()),
-            Element::Link(e) => Value::String(e.href.clone()),
+            Element::Member(_) => SimpleValue::null(),
+            Element::Ref(e) => SimpleValue::string(e.path.clone()),
+            Element::Link(e) => SimpleValue::string(e.href.clone()),
             Element::Custom(_, e) => e.content.clone(),
         }
     }
 }
 
 pub struct ElementRegistry {
-    registry: HashMap<String, fn(Value) -> Element>,
+    registry: HashMap<String, fn(SimpleValue) -> Element>,
 }
 
 impl ElementRegistry {
@@ -81,11 +79,11 @@ impl ElementRegistry {
         }
     }
 
-    pub fn register(&mut self, element_type: &str, constructor: fn(Value) -> Element) {
+    pub fn register(&mut self, element_type: &str, constructor: fn(SimpleValue) -> Element) {
         self.registry.insert(element_type.to_string(), constructor);
     }
 
-    pub fn create(&self, element_type: &str, value: Value) -> Option<Element> {
+    pub fn create(&self, element_type: &str, value: SimpleValue) -> Option<Element> {
         self.registry.get(element_type).map(|ctor| ctor(value))
     }
 }
@@ -118,14 +116,14 @@ impl ObjectElement {
         self.element = element_type.to_string();
     }
 
-    pub fn to_value(&self) -> Value {
-        let mut map = serde_json::Map::new();
+    pub fn to_value(&self) -> SimpleValue {
+        let mut map = HashMap::new();
         for member in &self.content {
             if let Element::String(StringElement { content, .. }) = *member.key.clone() {
-                map.insert(content.clone(), member.value.to_value());
+                map.insert(content, member.value.to_value());
             }
         }
-        Value::Object(map)
+        SimpleValue::object(map)
     }
 
     pub fn get_member(&self, key: &str) -> Option<&MemberElement> {
@@ -166,48 +164,9 @@ impl ObjectElement {
     }
 }
 
-impl StringElement {
-    pub fn new(s: &str) -> Self {
-        Self {
-            element: "string".to_string(),
-            meta: MetaElement::default(),
-            attributes: AttributesElement::default(),
-            content: s.to_string(),
-        }
-    }
-
-    pub fn set_element_type(&mut self, element_type: &str) {
-        self.element = element_type.to_string();
-    }
-
-    pub fn add_class(&mut self, _class_name: &str) {
-        // StringElement doesn't have classes field, but we can add it to attributes
-        // or ignore this for now since it's not part of the core structure
-    }
-
-    pub fn content(&self) -> &str {
-        &self.content
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct MemberElement {
-    pub key: Box<Element>,
-    pub value: Box<Element>,
-}
-
-impl MemberElement {
-    pub fn new(key: Element, value: Element) -> Self {
-        Self {
-            key: Box::new(key),
-            value: Box::new(value),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize)]
 pub struct MetaElement {
-    pub properties: HashMap<String, Value>,
+    pub properties: HashMap<String, SimpleValue>,
 }
 
 impl Default for MetaElement {
@@ -220,7 +179,7 @@ impl Default for MetaElement {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AttributesElement {
-    pub properties: HashMap<String, Value>,
+    pub properties: HashMap<String, SimpleValue>,
 }
 
 impl Default for AttributesElement {
@@ -237,6 +196,47 @@ pub struct StringElement {
     pub meta: MetaElement,
     pub attributes: AttributesElement,
     pub content: String,
+}
+
+impl StringElement {
+    pub fn new(s: &str) -> Self {
+        Self {
+            element: "string".to_string(),
+            meta: MetaElement::default(),
+            attributes: AttributesElement::default(),
+            content: s.to_string(),
+        }
+    }
+
+    pub fn set_element_type(&mut self, element_type: &str) {
+        self.element = element_type.to_string();
+    }
+
+    pub fn content(&self) -> &str {
+        &self.content
+    }
+
+    pub fn add_class(&mut self, class_name: &str) {
+        self.meta.properties.insert(
+            "class".to_string(),
+            SimpleValue::string(class_name.to_string())
+        );
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MemberElement {
+    pub key: Box<Element>,
+    pub value: Box<Element>,
+}
+
+impl MemberElement {
+    pub fn new(key: Element, value: Element) -> Self {
+        Self {
+            key: Box::new(key),
+            value: Box::new(value),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -319,7 +319,7 @@ impl ArrayElement {
     pub fn add_class(&mut self, class_name: &str) {
         self.meta.properties.insert(
             "class".to_string(),
-            Value::String(class_name.to_string())
+            SimpleValue::string(class_name)
         );
     }
 
@@ -367,7 +367,7 @@ pub struct CustomElement {
     pub element: String,
     pub meta: MetaElement,
     pub attributes: AttributesElement,
-    pub content: Value,
+    pub content: SimpleValue,
 }
 
 #[derive(Debug, Clone)]

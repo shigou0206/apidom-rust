@@ -1,6 +1,5 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use crate::builder::*;
-use apidom_ast::fold::{Fold, DefaultFolder};
 use crate::builder::paths_builder::build_and_decorate_paths;
 use crate::builder::schema_builder::{build_openapi_schema, build_and_decorate_schema};
 use crate::builder::components_builder::{build_and_decorate_components};
@@ -555,7 +554,7 @@ mod tests {
     // JSON to OpenAPI AST conversion tests
     #[test]
     fn test_json_to_openapi_ast_simple() {
-        use apidom_ast::fold::{JsonFolder, FoldFromCst};
+        use apidom_ast::{JsonFolder, FoldFromCst};
         
         let json_str = r#"{"openapi": "3.0.3", "info": {"title": "Test API", "version": "1.0.0"}}"#;
         
@@ -601,7 +600,7 @@ mod tests {
 
     #[test]
     fn test_json_to_openapi_ast_with_contact() {
-        use apidom_ast::fold::{JsonFolder, FoldFromCst};
+        use apidom_ast::{JsonFolder, FoldFromCst};
         
         let json_str = r#"{
             "openapi": "3.0.3",
@@ -669,7 +668,7 @@ mod tests {
 
     #[test]
     fn test_json_to_openapi_ast_with_servers() {
-        use apidom_ast::fold::{JsonFolder, FoldFromCst};
+        use apidom_ast::{JsonFolder, FoldFromCst};
         
         let json_str = r#"{
             "openapi": "3.0.3",
@@ -736,7 +735,7 @@ mod tests {
 
     #[test]
     fn test_json_to_openapi_ast_complete_document() {
-        use apidom_ast::fold::{JsonFolder, FoldFromCst};
+        use apidom_ast::{JsonFolder, FoldFromCst};
         
         let json_str = r#"{
             "openapi": "3.0.3",
@@ -904,14 +903,14 @@ mod tests {
             // 验证运行时表达式元数据
             if let Some(Element::Object(path_item_obj)) = folded_obj.get("{$request.body#/callbackUrl}") {
                 assert!(path_item_obj.meta.properties.contains_key("runtime-expression"));
-                if let Some(Value::String(expr)) = path_item_obj.meta.properties.get("runtime-expression") {
+                if let Some(SimpleValue::String(expr)) = path_item_obj.meta.properties.get("runtime-expression") {
                     assert_eq!(expr, "{$request.body#/callbackUrl}");
                 }
             }
             
             if let Some(Element::Object(path_item_obj)) = folded_obj.get("{$response.header.location}") {
                 assert!(path_item_obj.meta.properties.contains_key("runtime-expression"));
-                if let Some(Value::String(expr)) = path_item_obj.meta.properties.get("runtime-expression") {
+                if let Some(SimpleValue::String(expr)) = path_item_obj.meta.properties.get("runtime-expression") {
                     assert_eq!(expr, "{$response.header.location}");
                 }
             }
@@ -919,7 +918,7 @@ mod tests {
             // 验证 $ref 元数据
             if let Some(Element::Object(ref_obj)) = folded_obj.get("webhookRef") {
                 assert!(ref_obj.meta.properties.contains_key("referenced-element"));
-                if let Some(Value::String(ref_type)) = ref_obj.meta.properties.get("referenced-element") {
+                if let Some(SimpleValue::String(ref_type)) = ref_obj.meta.properties.get("referenced-element") {
                     assert_eq!(ref_type, "callback");
                 }
             }
@@ -1042,7 +1041,7 @@ mod tests {
             for expr in &runtime_expressions {
                 if let Some(Element::Object(path_obj)) = folded_obj.get(expr) {
                     assert!(path_obj.meta.properties.contains_key("runtime-expression"));
-                    if let Some(Value::String(meta_expr)) = path_obj.meta.properties.get("runtime-expression") {
+                    if let Some(SimpleValue::String(meta_expr)) = path_obj.meta.properties.get("runtime-expression") {
                         assert_eq!(meta_expr, expr);
                     }
                 }
@@ -1109,7 +1108,7 @@ mod tests {
             // 验证运行时表达式有元数据
             if let Some(Element::Object(rt_path)) = folded.get("{$request.body#/url}") {
                 assert!(rt_path.meta.properties.contains_key("runtime-expression"));
-                if let Some(Value::String(expr)) = rt_path.meta.properties.get("runtime-expression") {
+                if let Some(SimpleValue::String(expr)) = rt_path.meta.properties.get("runtime-expression") {
                     assert_eq!(expr, "{$request.body#/url}");
                 }
             }
@@ -1118,7 +1117,7 @@ mod tests {
             if let Some(Element::Object(ref_element)) = folded.get("webhook") {
                 assert!(ref_element.meta.properties.contains_key("referenced-element"));
                 assert!(ref_element.meta.properties.contains_key("reference-path"));
-                if let Some(Value::String(ref_path)) = ref_element.meta.properties.get("reference-path") {
+                if let Some(SimpleValue::String(ref_path)) = ref_element.meta.properties.get("reference-path") {
                     assert_eq!(ref_path, "#/components/callbacks/webhook");
                 }
             }

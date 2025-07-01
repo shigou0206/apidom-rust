@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::{Element, ObjectElement, StringElement, BooleanElement, NumberElement};
 use apidom_ns_json_schema_draft_7::elements::json_schema::JSONSchemaDraft7Element;
 
 /// JSON Schema 2019-09 Element

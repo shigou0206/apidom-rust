@@ -37,8 +37,7 @@
 //! - ✅ Fallback processing for unknown fields
 //! - ✅ Comprehensive metadata injection and validation
 
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
+use apidom_ast::*;
 use serde_json::Value;
 use regex::Regex;
 use crate::elements::responses::ResponsesElement;
@@ -155,31 +154,31 @@ fn process_response_reference(element: &Element, status_code: &str) -> Element {
         // Add reference metadata (equivalent to TypeScript ReferenceElement decoration)
         obj.meta.properties.insert(
             "referenced-element".to_string(),
-            Value::String("response".to_string())
+            SimpleValue::String("response".to_string())
         );
         
         // Add reference path metadata
         if let Some(Element::String(ref_str)) = obj.get("$ref") {
             obj.meta.properties.insert(
                 "reference-path".to_string(),
-                Value::String(ref_str.content.clone())
+                SimpleValue::String(ref_str.content.clone())
             );
         }
         
         // Add spec path for Reference
         obj.meta.properties.insert(
             "spec-path".to_string(),
-            Value::Array(vec![
-                Value::String("document".to_string()),
-                Value::String("objects".to_string()),
-                Value::String("Reference".to_string())
+            SimpleValue::Array(vec![
+                SimpleValue::String("document".to_string()),
+                SimpleValue::String("objects".to_string()),
+                SimpleValue::String("Reference".to_string())
             ])
         );
         
         // Add HTTP status code metadata
         obj.meta.properties.insert(
             "http-status-code".to_string(),
-            Value::String(status_code.to_string())
+            SimpleValue::String(status_code.to_string())
         );
         
         obj.add_class("reference");
@@ -206,19 +205,19 @@ where
             let mut enhanced_obj = response_element.object;
             enhanced_obj.meta.properties.insert(
                 "http-status-code".to_string(),
-                Value::String(status_code.to_string())
+                SimpleValue::String(status_code.to_string())
             );
             
             // Add status code validation metadata
             if status_code == "default" {
                 enhanced_obj.meta.properties.insert(
                     "is-default-response".to_string(),
-                    Value::Bool(true)
+                    SimpleValue::Bool(true)
                 );
             } else {
                 enhanced_obj.meta.properties.insert(
                     "is-status-code-response".to_string(),
-                    Value::Bool(true)
+                    SimpleValue::Bool(true)
                 );
                 
                 // Add status code category
@@ -233,12 +232,12 @@ where
                     };
                     enhanced_obj.meta.properties.insert(
                         "status-code-category".to_string(),
-                        Value::String(category.to_string())
+                        SimpleValue::String(category.to_string())
                     );
                 } else if status_code.ends_with("XX") {
                     enhanced_obj.meta.properties.insert(
                         "status-code-category".to_string(),
-                        Value::String(status_code.to_lowercase())
+                        SimpleValue::String(status_code.to_lowercase())
                     );
                 }
             }
@@ -273,7 +272,7 @@ fn process_specification_extensions(responses: &mut ResponsesElement, source: &O
         // Add specification extensions metadata
         responses.object.meta.properties.insert(
             "specification-extensions".to_string(),
-            Value::Array(spec_extensions.into_iter().map(Value::String).collect())
+            SimpleValue::Array(spec_extensions.into_iter().map(SimpleValue::String).collect())
         );
         responses.object.add_class("specification-extension");
     }
@@ -282,36 +281,36 @@ fn process_specification_extensions(responses: &mut ResponsesElement, source: &O
 /// Add validation error metadata
 fn add_validation_error_metadata(responses: &mut ResponsesElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
-    responses.object.meta.properties.insert(key, Value::String(error_msg.to_string()));
+    responses.object.meta.properties.insert(key, SimpleValue::String(error_msg.to_string()));
 }
 
 /// Add status code processing metadata
 fn add_status_code_metadata(responses: &mut ResponsesElement, status_code: &str) {
     let key = format!("statusCode_{}", status_code);
-    responses.object.meta.properties.insert(key, Value::Bool(true));
+    responses.object.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add overall processing metadata
 fn add_processing_metadata(responses: &mut ResponsesElement) {
-    responses.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
-    responses.object.meta.properties.insert("mixedFieldsVisitor".to_string(), Value::Bool(true));
-    responses.object.meta.properties.insert("alternatingVisitor".to_string(), Value::Bool(true));
-    responses.object.meta.properties.insert("fallbackVisitor".to_string(), Value::Bool(true));
-    responses.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), Value::Bool(true));
+    responses.object.meta.properties.insert("processed".to_string(), SimpleValue::Bool(true));
+    responses.object.meta.properties.insert("mixedFieldsVisitor".to_string(), SimpleValue::Bool(true));
+    responses.object.meta.properties.insert("alternatingVisitor".to_string(), SimpleValue::Bool(true));
+    responses.object.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::Bool(true));
+    responses.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::Bool(true));
     
     // Add field pattern validation metadata
-    responses.object.meta.properties.insert("fieldPatternValidation".to_string(), Value::Bool(true));
-    responses.object.meta.properties.insert("statusCodeValidation".to_string(), Value::Bool(true));
+    responses.object.meta.properties.insert("fieldPatternValidation".to_string(), SimpleValue::Bool(true));
+    responses.object.meta.properties.insert("statusCodeValidation".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add spec path metadata
 fn add_spec_path_metadata(responses: &mut ResponsesElement) {
     responses.object.meta.properties.insert(
         "spec-path".to_string(),
-        Value::Array(vec![
-            Value::String("document".to_string()),
-            Value::String("objects".to_string()),
-            Value::String("Responses".to_string())
+        SimpleValue::Array(vec![
+            SimpleValue::String("document".to_string()),
+            SimpleValue::String("objects".to_string()),
+            SimpleValue::String("Responses".to_string())
         ])
     );
 }
@@ -319,13 +318,12 @@ fn add_spec_path_metadata(responses: &mut ResponsesElement) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::{DefaultFolder, FoldFromCst};
     use serde_json::json;
 
     fn create_test_object(json_value: serde_json::Value) -> ObjectElement {
         let json_str = json_value.to_string();
         let cst = apidom_cst::parse_json_to_cst(&json_str);
-        let mut json_folder = apidom_ast::fold::JsonFolder::new();
+        let mut json_folder = JsonFolder::new();
         let ast = json_folder.fold_from_cst(&cst);
         
         if let Element::Object(obj) = ast {
@@ -409,52 +407,52 @@ mod tests {
         if let Some(Element::Object(response_200)) = responses.get_status_response("200") {
             assert_eq!(
                 response_200.meta.properties.get("http-status-code"),
-                Some(&Value::String("200".to_string()))
+                Some(&SimpleValue::String("200".to_string()))
             );
             assert_eq!(
                 response_200.meta.properties.get("status-code-category"),
-                Some(&Value::String("2xx".to_string()))
+                Some(&SimpleValue::String("2xx".to_string()))
             );
             assert_eq!(
                 response_200.meta.properties.get("is-status-code-response"),
-                Some(&Value::Bool(true))
+                Some(&SimpleValue::Bool(true))
             );
         }
         
         if let Some(Element::Object(response_4xx)) = responses.get_status_response("4XX") {
             assert_eq!(
                 response_4xx.meta.properties.get("http-status-code"),
-                Some(&Value::String("4XX".to_string()))
+                Some(&SimpleValue::String("4XX".to_string()))
             );
             assert_eq!(
                 response_4xx.meta.properties.get("status-code-category"),
-                Some(&Value::String("4xx".to_string()))
+                Some(&SimpleValue::String("4xx".to_string()))
             );
         }
         
         if let Some(Element::Object(response_default)) = responses.get_status_response("default") {
             assert_eq!(
                 response_default.meta.properties.get("http-status-code"),
-                Some(&Value::String("default".to_string()))
+                Some(&SimpleValue::String("default".to_string()))
             );
             assert_eq!(
                 response_default.meta.properties.get("is-default-response"),
-                Some(&Value::Bool(true))
+                Some(&SimpleValue::Bool(true))
             );
         }
         
         // Verify processing metadata
         assert_eq!(
             responses.object.meta.properties.get("processed"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::Bool(true))
         );
         assert_eq!(
             responses.object.meta.properties.get("mixedFieldsVisitor"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::Bool(true))
         );
         assert_eq!(
             responses.object.meta.properties.get("alternatingVisitor"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::Bool(true))
         );
     }
 
@@ -481,15 +479,15 @@ mod tests {
         if let Some(Element::Object(ref_404)) = responses.get_status_response("404") {
             assert_eq!(
                 ref_404.meta.properties.get("referenced-element"),
-                Some(&Value::String("response".to_string()))
+                Some(&SimpleValue::String("response".to_string()))
             );
             assert_eq!(
                 ref_404.meta.properties.get("reference-path"),
-                Some(&Value::String("#/components/responses/NotFound".to_string()))
+                Some(&SimpleValue::String("#/components/responses/NotFound".to_string()))
             );
             assert_eq!(
                 ref_404.meta.properties.get("http-status-code"),
-                Some(&Value::String("404".to_string()))
+                Some(&SimpleValue::String("404".to_string()))
             );
             
             // Verify reference classes
@@ -503,11 +501,11 @@ mod tests {
         if let Some(Element::Object(ref_500)) = responses.get_status_response("500") {
             assert_eq!(
                 ref_500.meta.properties.get("referenced-element"),
-                Some(&Value::String("response".to_string()))
+                Some(&SimpleValue::String("response".to_string()))
             );
             assert_eq!(
                 ref_500.meta.properties.get("reference-path"),
-                Some(&Value::String("#/components/responses/ServerError".to_string()))
+                Some(&SimpleValue::String("#/components/responses/ServerError".to_string()))
             );
         }
         
@@ -539,10 +537,10 @@ mod tests {
         
         // Verify specification extensions metadata
         assert!(responses.object.meta.properties.contains_key("specification-extensions"));
-        if let Some(Value::Array(extensions)) = responses.object.meta.properties.get("specification-extensions") {
+        if let Some(SimpleValue::Array(extensions)) = responses.object.meta.properties.get("specification-extensions") {
             assert_eq!(extensions.len(), 2);
-            assert!(extensions.contains(&Value::String("x-custom-responses".to_string())));
-            assert!(extensions.contains(&Value::String("x-vendor-extension".to_string())));
+            assert!(extensions.contains(&SimpleValue::String("x-custom-responses".to_string())));
+            assert!(extensions.contains(&SimpleValue::String("x-vendor-extension".to_string())));
         }
         
         // Verify specification extension class
@@ -582,7 +580,7 @@ mod tests {
         assert!(responses.object.meta.properties.contains_key("validationError_invalid-status"));
         assert!(responses.object.meta.properties.contains_key("validationError_600"));
         
-        if let Some(Value::String(error_msg)) = responses.object.meta.properties.get("validationError_invalid-status") {
+        if let Some(SimpleValue::String(error_msg)) = responses.object.meta.properties.get("validationError_invalid-status") {
             assert!(error_msg.contains("Invalid HTTP status code pattern"));
         }
     }
@@ -646,11 +644,11 @@ mod tests {
         if let Some(Element::Object(ref_401)) = responses.get_status_response("401") {
             assert_eq!(
                 ref_401.meta.properties.get("referenced-element"),
-                Some(&Value::String("response".to_string()))
+                Some(&SimpleValue::String("response".to_string()))
             );
             assert_eq!(
                 ref_401.meta.properties.get("reference-path"),
-                Some(&Value::String("#/components/responses/Unauthorized".to_string()))
+                Some(&SimpleValue::String("#/components/responses/Unauthorized".to_string()))
             );
         }
         
@@ -664,22 +662,22 @@ mod tests {
         if let Some(Element::Object(response_200)) = responses.get_status_response("200") {
             assert_eq!(
                 response_200.meta.properties.get("http-status-code"),
-                Some(&Value::String("200".to_string()))
+                Some(&SimpleValue::String("200".to_string()))
             );
             assert_eq!(
                 response_200.meta.properties.get("status-code-category"),
-                Some(&Value::String("2xx".to_string()))
+                Some(&SimpleValue::String("2xx".to_string()))
             );
         }
         
         if let Some(Element::Object(response_default)) = responses.get_status_response("default") {
             assert_eq!(
                 response_default.meta.properties.get("http-status-code"),
-                Some(&Value::String("default".to_string()))
+                Some(&SimpleValue::String("default".to_string()))
             );
             assert_eq!(
                 response_default.meta.properties.get("is-default-response"),
-                Some(&Value::Bool(true))
+                Some(&SimpleValue::Bool(true))
             );
         }
         
@@ -691,27 +689,27 @@ mod tests {
         // 5. Verify comprehensive metadata
         assert_eq!(
             responses.object.meta.properties.get("processed"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::Bool(true))
         );
         assert_eq!(
             responses.object.meta.properties.get("mixedFieldsVisitor"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::Bool(true))
         );
         assert_eq!(
             responses.object.meta.properties.get("alternatingVisitor"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::Bool(true))
         );
         assert_eq!(
             responses.object.meta.properties.get("canSupportSpecificationExtensions"),
-            Some(&Value::Bool(true))
+            Some(&SimpleValue::Bool(true))
         );
         
         // Verify spec path
-        if let Some(Value::Array(spec_path)) = responses.object.meta.properties.get("spec-path") {
+        if let Some(SimpleValue::Array(spec_path)) = responses.object.meta.properties.get("spec-path") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("Responses".to_string()));
+            assert_eq!(spec_path[0], SimpleValue::String("document".to_string()));
+            assert_eq!(spec_path[1], SimpleValue::String("objects".to_string()));
+            assert_eq!(spec_path[2], SimpleValue::String("Responses".to_string()));
         }
     }
 

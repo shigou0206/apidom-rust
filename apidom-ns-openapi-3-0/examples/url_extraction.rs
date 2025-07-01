@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::{Element, ObjectElement, ArrayElement, StringElement};
+use apidom_ast::{Element, ObjectElement, ArrayElement, StringElement};
 use apidom_ns_openapi_3_0::url_builder::extract_server_urls;
 
 fn main() {

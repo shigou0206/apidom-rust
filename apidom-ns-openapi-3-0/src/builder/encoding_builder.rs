@@ -37,9 +37,7 @@
 //! - ✅ Recursive processing (MapVisitor equivalent)
 //! - ✅ Polymorphic handling (ReferenceLike vs Header)
 
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
-use serde_json::Value;
+use apidom_ast::*;
 use crate::elements::encoding::EncodingElement;
 use crate::builder::encoding_headers_builder::build_and_decorate_encoding_headers;
 
@@ -171,53 +169,54 @@ fn convert_to_boolean_element(element: &Element) -> Option<BooleanElement> {
 
 /// Add metadata for headers processing
 fn add_headers_processing_metadata(encoding: &mut EncodingElement) {
-    encoding.object.meta.properties.insert("headersProcessed".to_string(), Value::Bool(true));
-    encoding.object.meta.properties.insert("headersVisitor".to_string(), Value::Bool(true));
+    encoding.object.meta.properties.insert("headersProcessed".to_string(), SimpleValue::Bool(true));
+    encoding.object.meta.properties.insert("headersVisitor".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add metadata for fixed fields
 fn add_fixed_field_metadata(encoding: &mut EncodingElement, field_name: &str) {
     let key = format!("fixedField_{}", field_name);
-    encoding.object.meta.properties.insert(key, Value::Bool(true));
+    encoding.object.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add metadata for references
 fn add_ref_metadata(encoding: &mut EncodingElement, field_name: &str) {
     let key = format!("ref_{}", field_name);
-    encoding.object.meta.properties.insert(key, Value::Bool(true));
-    encoding.object.meta.properties.insert("referenced-element".to_string(), Value::String("encoding".to_string()));
+    encoding.object.meta.properties.insert(key, SimpleValue::Bool(true));
+    encoding.object.meta.properties.insert("referenced-element".to_string(), SimpleValue::String("encoding".to_string()));
 }
 
 /// Add metadata for fallback handling
 fn add_fallback_metadata(encoding: &mut EncodingElement, field_name: &str) {
     let key = format!("fallback_{}", field_name);
-    encoding.object.meta.properties.insert(key, Value::Bool(true));
+    encoding.object.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add validation error metadata
 fn add_validation_error_metadata(encoding: &mut EncodingElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
-    encoding.object.meta.properties.insert(key, Value::String(error_msg.to_string()));
+    encoding.object.meta.properties.insert(key, SimpleValue::String(error_msg.to_string()));
 }
 
 /// Add overall processing metadata
 fn add_processing_metadata(encoding: &mut EncodingElement) {
-    encoding.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
+    encoding.object.meta.properties.insert("processed".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add spec path metadata
 fn add_spec_path_metadata(encoding: &mut EncodingElement) {
-    encoding.object.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("document".to_string()),
-        Value::String("objects".to_string()),
-        Value::String("Encoding".to_string())
+    encoding.object.meta.properties.insert("specPath".to_string(), SimpleValue::Array(vec![
+        SimpleValue::String("document".to_string()),
+        SimpleValue::String("objects".to_string()),
+        SimpleValue::String("Encoding".to_string())
     ]));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::DefaultFolder;
+    use apidom_ast::DefaultFolder;
+    use apidom_ast::{Element, ObjectElement, StringElement, BooleanElement, ArrayElement};
 
     #[test]
     fn test_basic_encoding_builder() {

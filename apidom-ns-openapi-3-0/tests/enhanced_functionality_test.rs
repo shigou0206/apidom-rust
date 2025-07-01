@@ -1,7 +1,6 @@
 use apidom_ns_openapi_3_0::fold_pass::{FoldPipeline, FoldPass, OpenApiSpecPass, ReferenceResolutionPass, SemanticEnhancementPass, ValidationPass};
 use apidom_ns_openapi_3_0::specification::create_openapi_specification;
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::json_source_to_ast;
+use apidom_ast::*;
 use apidom_cst::CstParser;
 use serde_json;
 use serde_yaml;

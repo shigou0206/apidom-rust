@@ -49,8 +49,7 @@
 //! - Compatible with any type implementing the `Fold` trait
 //! - Enables complex document transformation workflows
 
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
+use apidom_ast::*;
 use serde_json::Value;
 use crate::elements::header::HeaderElement;
 
@@ -230,7 +229,7 @@ fn process_schema_field(element: &Element, header: &mut HeaderElement) -> Elemen
         // Add reference metadata
         if let Element::Object(obj) = element {
             if obj.get("$ref").is_some() {
-                header.object.meta.properties.insert("schema-referenced-element".to_string(), Value::String("schema".to_string()));
+                header.object.meta.properties.insert("schema-referenced-element".to_string(), SimpleValue::String("schema".to_string()));
                 add_schema_ref_metadata(header);
             }
         }
@@ -250,12 +249,12 @@ fn process_content_field(content_obj: &ObjectElement, header: &mut HeaderElement
     for member in &mut processed_content.content {
         if let Element::Object(ref mut media_type_obj) = *member.value {
             // Add media type metadata
-            media_type_obj.meta.properties.insert("media-type".to_string(), Value::Bool(true));
+            media_type_obj.meta.properties.insert("media-type".to_string(), SimpleValue::Bool(true));
             
             // Process schema within media type if present
             if let Some(schema_element) = media_type_obj.get("schema") {
                 if is_reference_like_element(schema_element) {
-                    media_type_obj.meta.properties.insert("schema-referenced-element".to_string(), Value::String("schema".to_string()));
+                    media_type_obj.meta.properties.insert("schema-referenced-element".to_string(), SimpleValue::String("schema".to_string()));
                 }
             }
         }
@@ -278,7 +277,7 @@ fn is_reference_like_element(element: &Element) -> bool {
 fn validate_header_style(header: &mut HeaderElement, style: &str) {
     let valid_styles = ["simple"];
     if valid_styles.contains(&style) {
-        header.object.meta.properties.insert("validStyle".to_string(), Value::Bool(true));
+        header.object.meta.properties.insert("validStyle".to_string(), SimpleValue::Bool(true));
     } else {
         add_validation_error_metadata(header, "style", &format!("Invalid style '{}'. Must be one of: {:?}", style, valid_styles));
     }
@@ -286,66 +285,66 @@ fn validate_header_style(header: &mut HeaderElement, style: &str) {
 
 /// Add metadata for fixed fields
 fn add_fixed_field_metadata(header: &mut HeaderElement, field_name: &str) {
-    let key = format!("fixedField_{}", field_name);
-    header.object.meta.properties.insert(key, Value::Bool(true));
+    let key = format!("fixed-field_{}", field_name);
+    header.object.meta.properties.insert(key, SimpleValue::Bool(true));
     header.object.classes.content.push(Element::String(StringElement::new("fixed-field")));
 }
 
 /// Add metadata for references
 fn add_ref_metadata(header: &mut HeaderElement, field_name: &str) {
     let key = format!("ref_{}", field_name);
-    header.object.meta.properties.insert(key, Value::Bool(true));
-    header.object.meta.properties.insert("referenced-element".to_string(), Value::String("header".to_string()));
+    header.object.meta.properties.insert(key, SimpleValue::Bool(true));
+    header.object.meta.properties.insert("referenced-element".to_string(), SimpleValue::String("header".to_string()));
 }
 
 /// Add metadata for specification extensions
 fn add_specification_extension_metadata(header: &mut HeaderElement, field_name: &str) {
     let key = format!("specificationExtension_{}", field_name);
-    header.object.meta.properties.insert(key, Value::Bool(true));
+    header.object.meta.properties.insert(key, SimpleValue::Bool(true));
     header.object.classes.content.push(Element::String(StringElement::new("specification-extension")));
 }
 
 /// Add metadata for fallback handling
 fn add_fallback_metadata(header: &mut HeaderElement, field_name: &str) {
     let key = format!("fallback_{}", field_name);
-    header.object.meta.properties.insert(key, Value::Bool(true));
+    header.object.meta.properties.insert(key, SimpleValue::Bool(true));
 }
 
 /// Add metadata for validation errors
 fn add_validation_error_metadata(header: &mut HeaderElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
-    header.object.meta.properties.insert(key, Value::String(error_msg.to_string()));
+    header.object.meta.properties.insert(key, SimpleValue::String(error_msg.to_string()));
 }
 
 /// Add metadata for schema processing
 fn add_schema_metadata(header: &mut HeaderElement) {
-    header.object.meta.properties.insert("hasSchema".to_string(), Value::Bool(true));
+    header.object.meta.properties.insert("hasSchema".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add metadata for schema references
 fn add_schema_ref_metadata(header: &mut HeaderElement) {
-    header.object.meta.properties.insert("hasSchemaRef".to_string(), Value::Bool(true));
+    header.object.meta.properties.insert("hasSchemaRef".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add metadata for content processing
 fn add_content_metadata(header: &mut HeaderElement) {
-    header.object.meta.properties.insert("hasContent".to_string(), Value::Bool(true));
+    header.object.meta.properties.insert("hasContent".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add overall processing metadata
 fn add_processing_metadata(header: &mut HeaderElement) {
-    header.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
-    header.object.meta.properties.insert("fixedFieldsVisitor".to_string(), Value::Bool(true));
-    header.object.meta.properties.insert("fallbackVisitor".to_string(), Value::Bool(true));
-    header.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), Value::Bool(true));
+    header.object.meta.properties.insert("processed".to_string(), SimpleValue::Bool(true));
+    header.object.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::Bool(true));
+    header.object.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::Bool(true));
+    header.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::Bool(true));
 }
 
 /// Add spec path metadata
 fn add_spec_path_metadata(header: &mut HeaderElement) {
-    header.object.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("document".to_string()),
-        Value::String("objects".to_string()),
-        Value::String("Header".to_string())
+    header.object.meta.properties.insert("specPath".to_string(), SimpleValue::Array(vec![
+        SimpleValue::String("document".to_string()),
+        SimpleValue::String("objects".to_string()),
+        SimpleValue::String("Header".to_string())
     ]));
 }
 
@@ -368,14 +367,13 @@ fn validate_header(header: &mut HeaderElement) {
             "Header must have either 'content' or 'schema' property"
         );
     } else {
-        header.object.meta.properties.insert("validHeader".to_string(), Value::Bool(true));
+        header.object.meta.properties.insert("validHeader".to_string(), SimpleValue::Bool(true));
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::DefaultFolder;
 
     #[test]
     fn test_basic_header_builder() {
@@ -425,12 +423,12 @@ mod tests {
         assert_eq!(header.explode().unwrap().content, false);
         
         // Verify fixed field metadata
-        assert!(header.object.meta.properties.contains_key("fixedField_description"));
-        assert!(header.object.meta.properties.contains_key("fixedField_required"));
-        assert!(header.object.meta.properties.contains_key("fixedField_deprecated"));
-        assert!(header.object.meta.properties.contains_key("fixedField_style"));
-        assert!(header.object.meta.properties.contains_key("fixedField_explode"));
-        assert!(header.object.meta.properties.contains_key("fixedField_schema"));
+        assert!(header.object.meta.properties.contains_key("fixed-field_description"));
+        assert!(header.object.meta.properties.contains_key("fixed-field_required"));
+        assert!(header.object.meta.properties.contains_key("fixed-field_deprecated"));
+        assert!(header.object.meta.properties.contains_key("fixed-field_style"));
+        assert!(header.object.meta.properties.contains_key("fixed-field_explode"));
+        assert!(header.object.meta.properties.contains_key("fixed-field_schema"));
         
         // Verify processing metadata
         assert!(header.object.meta.properties.contains_key("processed"));
@@ -440,11 +438,11 @@ mod tests {
         assert!(header.object.meta.properties.contains_key("specPath"));
         
         // Verify spec path
-        if let Some(Value::Array(path)) = header.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(path)) = header.object.meta.properties.get("specPath") {
             assert_eq!(path.len(), 3);
-            assert_eq!(path[0], Value::String("document".to_string()));
-            assert_eq!(path[1], Value::String("objects".to_string()));
-            assert_eq!(path[2], Value::String("Header".to_string()));
+            assert_eq!(path[0], SimpleValue::String("document".to_string()));
+            assert_eq!(path[1], SimpleValue::String("objects".to_string()));
+            assert_eq!(path[2], SimpleValue::String("Header".to_string()));
         }
         
         // Verify validation
@@ -525,7 +523,7 @@ mod tests {
         // Verify schema reference metadata
         assert!(header.object.meta.properties.contains_key("schema-referenced-element"));
         assert!(header.object.meta.properties.contains_key("hasSchemaRef"));
-        if let Some(Value::String(ref_type)) = header.object.meta.properties.get("schema-referenced-element") {
+        if let Some(SimpleValue::String(ref_type)) = header.object.meta.properties.get("schema-referenced-element") {
             assert_eq!(ref_type, "schema");
         }
     }
@@ -555,7 +553,7 @@ mod tests {
         
         // Verify content metadata
         assert!(header.object.meta.properties.contains_key("hasContent"));
-        assert!(header.object.meta.properties.contains_key("fixedField_content"));
+        assert!(header.object.meta.properties.contains_key("fixed-field_content"));
         
         // Verify validation
         assert!(header.object.meta.properties.contains_key("validHeader"));
@@ -564,7 +562,7 @@ mod tests {
     #[test]
     fn test_header_with_ref() {
         let mut obj = ObjectElement::new();
-        obj.set("$ref", Element::String(StringElement::new("#/components/headers/ApiKeyHeader")));
+        obj.set("$ref", Element::String(StringElement::new("#/components/headers/ApiKey")));
 
         let header = build_and_decorate_header::<DefaultFolder>(&Element::Object(obj), None);
         assert!(header.is_some());
@@ -577,7 +575,7 @@ mod tests {
         // Verify reference metadata
         assert!(header.object.meta.properties.contains_key("ref_$ref"));
         assert!(header.object.meta.properties.contains_key("referenced-element"));
-        if let Some(Value::String(ref_type)) = header.object.meta.properties.get("referenced-element") {
+        if let Some(SimpleValue::String(ref_type)) = header.object.meta.properties.get("referenced-element") {
             assert_eq!(ref_type, "header");
         }
     }
@@ -648,13 +646,13 @@ mod tests {
         assert_eq!(header.allow_reserved().unwrap().content, true);
         
         // 2. Fixed field metadata
-        assert!(header.object.meta.properties.contains_key("fixedField_description"));
-        assert!(header.object.meta.properties.contains_key("fixedField_required"));
-        assert!(header.object.meta.properties.contains_key("fixedField_deprecated"));
-        assert!(header.object.meta.properties.contains_key("fixedField_style"));
-        assert!(header.object.meta.properties.contains_key("fixedField_explode"));
-        assert!(header.object.meta.properties.contains_key("fixedField_allowReserved"));
-        assert!(header.object.meta.properties.contains_key("fixedField_schema"));
+        assert!(header.object.meta.properties.contains_key("fixed-field_description"));
+        assert!(header.object.meta.properties.contains_key("fixed-field_required"));
+        assert!(header.object.meta.properties.contains_key("fixed-field_deprecated"));
+        assert!(header.object.meta.properties.contains_key("fixed-field_style"));
+        assert!(header.object.meta.properties.contains_key("fixed-field_explode"));
+        assert!(header.object.meta.properties.contains_key("fixed-field_allowReserved"));
+        assert!(header.object.meta.properties.contains_key("fixed-field_schema"));
         
         // 3. Schema processing (SchemaVisitor/AlternatingVisitor)
         assert!(header.schema().is_some());
@@ -678,11 +676,11 @@ mod tests {
         assert!(header.object.meta.properties.contains_key("canSupportSpecificationExtensions"));
         
         // 7. SpecPath metadata
-        if let Some(Value::Array(path)) = header.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(path)) = header.object.meta.properties.get("specPath") {
             assert_eq!(path.len(), 3);
-            assert_eq!(path[0], Value::String("document".to_string()));
-            assert_eq!(path[1], Value::String("objects".to_string()));
-            assert_eq!(path[2], Value::String("Header".to_string()));
+            assert_eq!(path[0], SimpleValue::String("document".to_string()));
+            assert_eq!(path[1], SimpleValue::String("objects".to_string()));
+            assert_eq!(path[2], SimpleValue::String("Header".to_string()));
         }
         
         // 8. Validation
@@ -707,5 +705,75 @@ mod tests {
             }
         });
         assert!(has_spec_extension_class);
+    }
+
+    #[test]
+    fn test_build_header_with_schema_reference() {
+        let mut obj = ObjectElement::new();
+        obj.set("schema", Element::Object({
+            let mut schema_ref = ObjectElement::new();
+            schema_ref.set("$ref", Element::String(StringElement::new("#/components/schemas/User")));
+            schema_ref
+        }));
+
+        let header = build_and_decorate_header(&Element::Object(obj), None::<&mut crate::fold::OpenApiBuilderFolder>).unwrap();
+
+        // Check schema reference metadata
+        if let Some(schema_ref) = header.object.get("schema") {
+            if let Element::Object(ref_obj) = schema_ref {
+                assert_eq!(
+                    ref_obj.meta.properties.get("referenced-element"),
+                    Some(&SimpleValue::string("schema".to_string()))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_build_header_with_validation_error() {
+        let mut obj = ObjectElement::new();
+        obj.set("schema", Element::String(StringElement::new("invalid schema")));
+
+        let header = build_and_decorate_header(&Element::Object(obj), None::<&mut crate::fold::OpenApiBuilderFolder>).unwrap();
+
+        // Check validation error metadata
+        assert!(header.object.meta.properties.contains_key("validationError_schema"));
+        if let Some(SimpleValue::String(error_msg)) = header.object.meta.properties.get("validationError_schema") {
+            assert!(error_msg.contains("Expected object or reference"));
+        }
+    }
+
+    #[test]
+    fn test_build_header_with_spec_path() {
+        let mut obj = ObjectElement::new();
+        obj.set("description", Element::String(StringElement::new("Test header")));
+
+        let header = build_and_decorate_header(&Element::Object(obj), None::<&mut crate::fold::OpenApiBuilderFolder>).unwrap();
+
+        // Check spec path metadata
+        if let Some(SimpleValue::Array(spec_path)) = header.object.meta.properties.get("spec-path") {
+            assert_eq!(spec_path.len(), 3);
+            assert!(matches!(&spec_path[0], SimpleValue::String(s) if s == "document"));
+            assert!(matches!(&spec_path[1], SimpleValue::String(s) if s == "objects"));
+            assert!(matches!(&spec_path[2], SimpleValue::String(s) if s == "Header"));
+        }
+    }
+
+    #[test]
+    fn test_build_header_with_reference() {
+        let mut obj = ObjectElement::new();
+        obj.set("$ref", Element::String(StringElement::new("#/components/headers/ApiKey")));
+
+        let header = build_and_decorate_header(&Element::Object(obj), None::<&mut crate::fold::OpenApiBuilderFolder>).unwrap();
+
+        // Check reference metadata
+        assert_eq!(
+            header.object.meta.properties.get("referenced-element"),
+            Some(&SimpleValue::string("header".to_string()))
+        );
+        assert_eq!(
+            header.object.meta.properties.get("reference-path"),
+            Some(&SimpleValue::string("#/components/headers/ApiKey".to_string()))
+        );
     }
 }

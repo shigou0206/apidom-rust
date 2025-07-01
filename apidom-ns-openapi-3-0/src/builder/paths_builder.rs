@@ -1,7 +1,6 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 use crate::elements::paths::PathsElement;
 use crate::builder::path_item_builder::build_and_decorate_path_item;
-use serde_json::Value;
 
 /// Comprehensive OpenAPI Paths Builder
 /// 
@@ -39,7 +38,7 @@ pub fn build_and_decorate_paths<F>(
     mut folder: Option<&mut F>
 ) -> Option<PathsElement>
 where
-    F: apidom_ast::fold::Fold,
+    F: Fold,
 {
     let obj = element.as_object()?;
     let mut paths = PathsElement::new();
@@ -124,7 +123,7 @@ where
                     Element::String(key.clone()),
                     processed_value
                 );
-                add_fallback_metadata(&mut fallback_member);
+                add_paths_fallback_metadata(&mut fallback_member);
                 paths.object.content.push(fallback_member);
             }
         }
@@ -134,7 +133,7 @@ where
     paths.object.add_class("paths");
     paths.object.meta.properties.insert(
         "element-type".to_string(),
-        Value::String("paths".to_string())
+        SimpleValue::string("paths".to_string())
     );
     
     // Validate Paths structure
@@ -162,7 +161,7 @@ fn add_path_template_metadata(key_element: &mut StringElement) {
     key_element.add_class("path-template");
     key_element.meta.properties.insert(
         "path-template".to_string(),
-        Value::Bool(true)
+        SimpleValue::bool(true)
     );
 }
 
@@ -172,7 +171,7 @@ fn add_patterned_field_metadata(member: &mut MemberElement) {
     if let Element::String(ref mut key_str) = *member.key {
         key_str.meta.properties.insert(
             "patterned-field".to_string(),
-            Value::Bool(true)
+            SimpleValue::bool(true)
         );
     }
 }
@@ -183,18 +182,18 @@ fn add_extension_metadata(member: &mut MemberElement) {
     if let Element::String(ref mut key_str) = *member.key {
         key_str.meta.properties.insert(
             "specification-extension".to_string(),
-            Value::Bool(true)
+            SimpleValue::bool(true)
         );
     }
 }
 
 /// Add metadata for fallback fields
-fn add_fallback_metadata(member: &mut MemberElement) {
+fn add_paths_fallback_metadata(member: &mut MemberElement) {
     // Add metadata to the key element
     if let Element::String(ref mut key_str) = *member.key {
         key_str.meta.properties.insert(
             "fallback-field".to_string(),
-            Value::Bool(true)
+            SimpleValue::bool(true)
         );
     }
 }
@@ -203,15 +202,15 @@ fn add_fallback_metadata(member: &mut MemberElement) {
 fn add_path_metadata_to_path_item(path_item_obj: &mut ObjectElement, key: &StringElement) {
     path_item_obj.meta.properties.insert(
         "path".to_string(),
-        Value::String(key.content.clone())
+        SimpleValue::string(key.content.clone())
     );
     path_item_obj.meta.properties.insert(
         "path-template".to_string(),
-        Value::String(key.content.clone())
+        SimpleValue::string(key.content.clone())
     );
     path_item_obj.meta.properties.insert(
         "openapi-path".to_string(),
-        Value::String(key.content.clone())
+        SimpleValue::string(key.content.clone())
     );
 }
 
@@ -220,21 +219,21 @@ fn add_ref_metadata(paths: &mut PathsElement, ref_path: &str) {
     paths.object.add_class("reference");
     paths.object.meta.properties.insert(
         "referenced-element".to_string(),
-        Value::String("paths".to_string())
+        SimpleValue::string("paths".to_string())
     );
     paths.object.meta.properties.insert(
         "reference-path".to_string(),
-        Value::String(ref_path.to_string())
+        SimpleValue::string(ref_path.to_string())
     );
 }
 
 /// Add overall processing metadata (equivalent to TypeScript PatternedFieldsVisitor + FallbackVisitor)
 fn add_processing_metadata(paths: &mut PathsElement) {
-    paths.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
-    paths.object.meta.properties.insert("patternedFieldsVisitor".to_string(), Value::Bool(true));
-    paths.object.meta.properties.insert("fallbackVisitor".to_string(), Value::Bool(true));
-    paths.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), Value::Bool(true));
-    paths.object.meta.properties.insert("fieldPatternPredicate".to_string(), Value::String("stubTrue".to_string()));
+    paths.object.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
+    paths.object.meta.properties.insert("patternedFieldsVisitor".to_string(), SimpleValue::bool(true));
+    paths.object.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::bool(true));
+    paths.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::bool(true));
+    paths.object.meta.properties.insert("fieldPatternPredicate".to_string(), SimpleValue::string("stubTrue".to_string()));
     
     // Add Paths specific classes
     paths.object.classes.content.push(Element::String(StringElement::new("paths")));
@@ -242,10 +241,10 @@ fn add_processing_metadata(paths: &mut PathsElement) {
 
 /// Add spec path metadata (equivalent to TypeScript specPath)
 fn add_spec_path_metadata(paths: &mut PathsElement) {
-    paths.object.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("document".to_string()),
-        Value::String("objects".to_string()),
-        Value::String("PathItem".to_string())
+    paths.object.meta.properties.insert("specPath".to_string(), SimpleValue::array(vec![
+        SimpleValue::string("document".to_string()),
+        SimpleValue::string("objects".to_string()),
+        SimpleValue::string("PathItem".to_string())
     ]));
 }
 
@@ -253,8 +252,23 @@ fn add_spec_path_metadata(paths: &mut PathsElement) {
 fn validate_paths(paths: &mut PathsElement) -> Option<()> {
     // Paths can be empty or contain only extensions
     // No strict validation required for OpenAPI 3.0 Paths
-    paths.object.meta.properties.insert("validPaths".to_string(), Value::Bool(true));
+    paths.object.meta.properties.insert("validPaths".to_string(), SimpleValue::bool(true));
     Some(())
+}
+
+fn add_fixed_field_metadata(paths: &mut PathsElement, field_name: &str) {
+    let key = format!("fixedField_{}", field_name);
+    paths.object.meta.properties.insert(key, SimpleValue::bool(true));
+}
+
+fn add_specification_extension_metadata(paths: &mut PathsElement, field_name: &str) {
+    let key = format!("specificationExtension_{}", field_name);
+    paths.object.meta.properties.insert(key, SimpleValue::bool(true));
+}
+
+fn add_validation_error_metadata(paths: &mut PathsElement, field_name: &str, error_msg: &str) {
+    let key = format!("validationError_{}", field_name);
+    paths.object.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));
 }
 
 #[cfg(test)]
@@ -319,7 +333,7 @@ mod tests {
         assert!(paths.object.meta.properties.contains_key("canSupportSpecificationExtensions"));
         assert_eq!(
             paths.object.meta.properties.get("fieldPatternPredicate"),
-            Some(&Value::String("stubTrue".to_string()))
+            Some(&SimpleValue::string("stubTrue".to_string()))
         );
         
         // Verify element class
@@ -333,11 +347,11 @@ mod tests {
         
         // Verify spec path metadata
         assert!(paths.object.meta.properties.contains_key("specPath"));
-        if let Some(Value::Array(spec_path)) = paths.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(spec_path)) = paths.object.meta.properties.get("specPath") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("PathItem".to_string()));
+            assert_eq!(spec_path[0], SimpleValue::string("document".to_string()));
+            assert_eq!(spec_path[1], SimpleValue::string("objects".to_string()));
+            assert_eq!(spec_path[2], SimpleValue::string("PathItem".to_string()));
         }
         
         // Verify patterned field metadata
@@ -348,15 +362,15 @@ mod tests {
                     if let Element::Object(path_item_obj) = &*member.value {
                         assert_eq!(
                             path_item_obj.meta.properties.get("path"),
-                            Some(&Value::String(key.content.clone()))
+                            Some(&SimpleValue::string(key.content.clone()))
                         );
                         assert_eq!(
                             path_item_obj.meta.properties.get("path-template"),
-                            Some(&Value::String(key.content.clone()))
+                            Some(&SimpleValue::string(key.content.clone()))
                         );
                         assert_eq!(
                             path_item_obj.meta.properties.get("openapi-path"),
-                            Some(&Value::String(key.content.clone()))
+                            Some(&SimpleValue::string(key.content.clone()))
                         );
                     }
                 }
@@ -407,14 +421,13 @@ mod tests {
                 false
             }
         }));
-        assert_eq!(
-            paths.object.meta.properties.get("referenced-element"),
-            Some(&Value::String("paths".to_string()))
-        );
-        assert_eq!(
-            paths.object.meta.properties.get("reference-path"),
-            Some(&Value::String("#/components/paths/CommonPaths".to_string()))
-        );
+        assert!(paths.object.meta.properties.contains_key("referenced-element"));
+        if let Some(SimpleValue::String(ref_elem)) = paths.object.meta.properties.get("referenced-element") {
+            assert_eq!(ref_elem, "paths");
+        }
+        if let Some(SimpleValue::String(ref_path)) = paths.object.meta.properties.get("reference-path") {
+            assert_eq!(ref_path, "#/components/paths/CommonPaths");
+        }
     }
 
     #[test]
@@ -489,7 +502,7 @@ mod tests {
         assert!(paths.object.meta.properties.contains_key("patternedFieldsVisitor"));
         assert_eq!(
             paths.object.meta.properties.get("fieldPatternPredicate"),
-            Some(&Value::String("stubTrue".to_string()))
+            Some(&SimpleValue::string("stubTrue".to_string()))
         );
         
         // 2. Specification extensions support
@@ -512,15 +525,15 @@ mod tests {
                     if let Element::Object(path_item_obj) = &*member.value {
                         assert_eq!(
                             path_item_obj.meta.properties.get("path"),
-                            Some(&Value::String(key.content.clone()))
+                            Some(&SimpleValue::string(key.content.clone()))
                         );
                         assert_eq!(
                             path_item_obj.meta.properties.get("path-template"),
-                            Some(&Value::String(key.content.clone()))
+                            Some(&SimpleValue::string(key.content.clone()))
                         );
                         assert_eq!(
                             path_item_obj.meta.properties.get("openapi-path"),
-                            Some(&Value::String(key.content.clone()))
+                            Some(&SimpleValue::string(key.content.clone()))
                         );
                     }
                 }
@@ -561,16 +574,16 @@ mod tests {
         }));
         assert_eq!(
             paths.object.meta.properties.get("element-type"),
-            Some(&Value::String("paths".to_string()))
+            Some(&SimpleValue::string("paths".to_string()))
         );
         
         // 7. Spec path metadata (equivalent to TypeScript specPath)
         assert!(paths.object.meta.properties.contains_key("specPath"));
-        if let Some(Value::Array(spec_path)) = paths.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(spec_path)) = paths.object.meta.properties.get("specPath") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("PathItem".to_string()));
+            assert_eq!(spec_path[0], SimpleValue::String("document".to_string()));
+            assert_eq!(spec_path[1], SimpleValue::String("objects".to_string()));
+            assert_eq!(spec_path[2], SimpleValue::String("PathItem".to_string()));
         }
         
         // 8. Processing metadata

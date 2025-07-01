@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::{Element, ObjectElement};
 use apidom_ns_json_schema_draft_7::elements::link_description::LinkDescriptionDraft7Element;
 
 /// JSON Schema Draft 2019-09 的 LinkDescription 扩展实现

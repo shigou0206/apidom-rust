@@ -13,10 +13,8 @@
  * - URL format validation
  */
 
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
+use apidom_ast::*;
 use crate::elements::oauth_flow::OAuthFlowElement;
-use serde_json::Value;
 
 /// Build a basic OAuthFlowElement from a generic Element
 pub fn build_oauth_flow(element: &Element) -> Option<OAuthFlowElement> {
@@ -203,60 +201,60 @@ fn convert_to_string_element(element: &Element) -> Option<StringElement> {
 /// Add metadata for fixed fields
 fn add_fixed_field_metadata(flow: &mut OAuthFlowElement, field_name: &str) {
     let key = format!("fixedField_{}", field_name);
-    flow.object.meta.properties.insert(key, Value::Bool(true));
+    flow.object.meta.properties.insert(key, SimpleValue::bool(true));
     flow.object.classes.content.push(Element::String(StringElement::new("fixed-field")));
 }
 
 /// Add metadata for references
 fn add_ref_metadata(flow: &mut OAuthFlowElement, ref_path: &str) {
-    flow.object.meta.properties.insert("referenced-element".to_string(), Value::String("oAuthFlow".to_string()));
-    flow.object.meta.properties.insert("reference-path".to_string(), Value::String(ref_path.to_string()));
+    flow.object.meta.properties.insert("referenced-element".to_string(), SimpleValue::string("oAuthFlow".to_string()));
+    flow.object.meta.properties.insert("reference-path".to_string(), SimpleValue::string(ref_path.to_string()));
     flow.object.classes.content.push(Element::String(StringElement::new("reference-element")));
 }
 
 /// Add metadata for specification extensions
 fn add_specification_extension_metadata(flow: &mut OAuthFlowElement, field_name: &str) {
     let key = format!("specificationExtension_{}", field_name);
-    flow.object.meta.properties.insert(key, Value::Bool(true));
+    flow.object.meta.properties.insert(key, SimpleValue::bool(true));
     flow.object.classes.content.push(Element::String(StringElement::new("specification-extension")));
 }
 
 /// Add metadata for fallback handling
 fn add_fallback_metadata(flow: &mut OAuthFlowElement, field_name: &str) {
     let key = format!("fallback_{}", field_name);
-    flow.object.meta.properties.insert(key, Value::Bool(true));
+    flow.object.meta.properties.insert(key, SimpleValue::bool(true));
     flow.object.classes.content.push(Element::String(StringElement::new("fallback-field")));
 }
 
 /// Add metadata for validation errors
 fn add_validation_error_metadata(flow: &mut OAuthFlowElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
-    flow.object.meta.properties.insert(key, Value::String(error_msg.to_string()));
+    flow.object.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));
 }
 
 /// Add overall processing metadata
 fn add_processing_metadata(flow: &mut OAuthFlowElement) {
-    flow.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
-    flow.object.meta.properties.insert("fixedFieldsVisitor".to_string(), Value::Bool(true));
-    flow.object.meta.properties.insert("fallbackVisitor".to_string(), Value::Bool(true));
-    flow.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), Value::Bool(true));
+    flow.object.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
+    flow.object.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::bool(true));
+    flow.object.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::bool(true));
+    flow.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::bool(true));
 }
 
 /// Add spec path metadata
 fn add_spec_path_metadata(flow: &mut OAuthFlowElement) {
-    flow.object.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("document".to_string()),
-        Value::String("objects".to_string()),
-        Value::String("OAuthFlow".to_string())
+    flow.object.meta.properties.insert("specPath".to_string(), SimpleValue::array(vec![
+        SimpleValue::string("document".to_string()),
+        SimpleValue::string("objects".to_string()),
+        SimpleValue::string("OAuthFlow".to_string())
     ]));
 }
 
 /// Add scopes-specific metadata (equivalent to OAuthFlowScopesElement)
 fn add_scopes_metadata(scopes: &mut ObjectElement) {
-    scopes.meta.properties.insert("mapVisitor".to_string(), Value::Bool(true));
-    scopes.meta.properties.insert("scopesElement".to_string(), Value::Bool(true));
-    scopes.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("value".to_string())
+    scopes.meta.properties.insert("mapVisitor".to_string(), SimpleValue::bool(true));
+    scopes.meta.properties.insert("scopesElement".to_string(), SimpleValue::bool(true));
+    scopes.meta.properties.insert("specPath".to_string(), SimpleValue::array(vec![
+        SimpleValue::string("value".to_string())
     ]));
     scopes.classes.content.push(Element::String(StringElement::new("oauth-flow-scopes")));
 }
@@ -290,14 +288,13 @@ fn validate_oauth_flow(flow: &mut OAuthFlowElement) {
     
     // If validation passes
     if !has_errors {
-        flow.object.meta.properties.insert("validOAuthFlow".to_string(), Value::Bool(true));
+        flow.object.meta.properties.insert("validOAuthFlow".to_string(), SimpleValue::bool(true));
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::DefaultFolder;
 
     #[test]
     fn test_basic_oauth_flow_builder() {
@@ -357,11 +354,11 @@ mod tests {
         assert!(flow.object.meta.properties.contains_key("canSupportSpecificationExtensions"));
         
         // Verify spec path metadata
-        if let Some(Value::Array(spec_path)) = flow.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(spec_path)) = flow.object.meta.properties.get("specPath") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("OAuthFlow".to_string()));
+            assert!(matches!(spec_path[0], SimpleValue::String(_)));
+            assert!(matches!(spec_path[1], SimpleValue::String(_)));
+            assert!(matches!(spec_path[2], SimpleValue::String(_)));
         }
         
         // Verify scopes metadata (equivalent to OAuthFlowScopesElement)
@@ -427,7 +424,7 @@ mod tests {
         assert!(flow.object.meta.properties.contains_key("referenced-element"));
         assert!(flow.object.meta.properties.contains_key("reference-path"));
         
-        if let Some(Value::String(ref_elem)) = flow.object.meta.properties.get("referenced-element") {
+        if let Some(SimpleValue::String(ref_elem)) = flow.object.meta.properties.get("referenced-element") {
             assert_eq!(ref_elem, "oAuthFlow");
         }
     }
@@ -590,8 +587,9 @@ mod tests {
         let scopes = flow.scopes().unwrap();
         assert!(scopes.meta.properties.contains_key("mapVisitor"));
         assert!(scopes.meta.properties.contains_key("scopesElement"));
-        if let Some(Value::Array(scopes_spec_path)) = scopes.meta.properties.get("specPath") {
-            assert_eq!(scopes_spec_path[0], Value::String("value".to_string()));
+        if let Some(SimpleValue::Array(scopes_spec_path)) = scopes.meta.properties.get("specPath") {
+            assert_eq!(scopes_spec_path.len(), 1);
+            assert!(matches!(scopes_spec_path[0], SimpleValue::String(_)));
         }
         
         // 3. Specification extensions support
@@ -602,11 +600,11 @@ mod tests {
         assert!(flow.object.meta.properties.contains_key("fallback_customField"));
         
         // 5. Spec path metadata
-        if let Some(Value::Array(spec_path)) = flow.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(spec_path)) = flow.object.meta.properties.get("specPath") {
             assert_eq!(spec_path.len(), 3);
-            assert_eq!(spec_path[0], Value::String("document".to_string()));
-            assert_eq!(spec_path[1], Value::String("objects".to_string()));
-            assert_eq!(spec_path[2], Value::String("OAuthFlow".to_string()));
+            assert!(matches!(spec_path[0], SimpleValue::String(_)));
+            assert!(matches!(spec_path[1], SimpleValue::String(_)));
+            assert!(matches!(spec_path[2], SimpleValue::String(_)));
         }
         
         // 6. Overall processing metadata

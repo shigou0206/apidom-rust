@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::{Element, ObjectElement, StringElement, ArrayElement};
 use apidom_ns_json_schema_draft_6::elements::link_description::LinkDescriptionDraft6Element;
 
 /// JSON Schema Draft-7 LinkDescription

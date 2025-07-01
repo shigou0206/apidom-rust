@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::*;
 
 /// Represents the OpenAPI `info` object.
 #[derive(Debug, Clone)]

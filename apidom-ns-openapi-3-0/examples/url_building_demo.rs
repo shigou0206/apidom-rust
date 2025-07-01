@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use apidom_ast::minim_model::{Element, ObjectElement, ArrayElement, StringElement};
+use apidom_ast::{Element, ObjectElement, ArrayElement, StringElement};
 use apidom_ns_openapi_3_0::url_builder::{UrlBuilder, UrlTemplate, extract_server_urls, extract_path_templates};
 
 fn main() {
@@ -233,7 +233,7 @@ fn create_mock_openapi_document() -> Element {
     let mut pet_id_param = ObjectElement::new();
     pet_id_param.set("name", Element::String(StringElement::new("petId")));
     pet_id_param.set("in", Element::String(StringElement::new("path")));
-    pet_id_param.set("required", Element::Boolean(apidom_ast::minim_model::BooleanElement::new(true)));
+    pet_id_param.set("required", Element::Boolean(apidom_ast::BooleanElement::new(true)));
     parameters.content.push(Element::Object(pet_id_param));
     
     get_operation.set("parameters", Element::Array(parameters));
@@ -250,7 +250,7 @@ fn create_mock_openapi_document() -> Element {
     let mut status_param = ObjectElement::new();
     status_param.set("name", Element::String(StringElement::new("status")));
     status_param.set("in", Element::String(StringElement::new("query")));
-    status_param.set("required", Element::Boolean(apidom_ast::minim_model::BooleanElement::new(true)));
+    status_param.set("required", Element::Boolean(apidom_ast::BooleanElement::new(true)));
     status_parameters.content.push(Element::Object(status_param));
     
     find_operation.set("parameters", Element::Array(status_parameters));

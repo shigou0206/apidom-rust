@@ -1,4 +1,4 @@
-use apidom_ast::minim_model::*;
+use apidom_ast::{Element, ObjectElement, StringElement};
 use apidom_ns_json_schema_draft_4::elements::link_description::LinkDescriptionElement;
 use std::fmt;
 

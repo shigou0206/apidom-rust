@@ -1,5 +1,5 @@
 use crate::specification::{OpenApiSpecification, apply_fixed_fields_visitor};
-use apidom_ast::minim_model::Element;
+use apidom_ast::Element;
 use std::collections::HashMap;
 
 /// FoldPass represents a single transformation pass over the document
@@ -450,7 +450,7 @@ mod tests {
     
     #[test]
     fn test_element_type_determination_basic() {
-        use apidom_ast::minim_model::{ObjectElement, StringElement};
+        use apidom_ast::{ObjectElement, StringElement};
         
         // Test basic element type determination
         let element = Element::String(StringElement::new("test"));

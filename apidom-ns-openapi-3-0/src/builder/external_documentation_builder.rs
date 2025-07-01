@@ -37,9 +37,7 @@
 //! - Compatible with any type implementing the `Fold` trait
 //! - Enables complex document transformation workflows
 
-use apidom_ast::minim_model::*;
-use apidom_ast::fold::Fold;
-use serde_json::Value;
+use apidom_ast::*;
 use crate::elements::external_documentation::ExternalDocumentationElement;
 
 /// Basic external documentation builder - equivalent to simple constructor
@@ -130,58 +128,58 @@ fn convert_to_string_element(element: &Element) -> Option<StringElement> {
 }
 
 /// Add metadata for fixed fields
-fn add_fixed_field_metadata(external_docs: &mut ExternalDocumentationElement, field_name: &str) {
-    let key = format!("fixedField_{}", field_name);
-    external_docs.object.meta.properties.insert(key, Value::Bool(true));
+fn add_fixed_field_metadata(external_docs: &mut ExternalDocumentationElement, _field_name: &str) {
+    let key = format!("fixed-field_{}", _field_name);
+    external_docs.object.meta.properties.insert(key, SimpleValue::bool(true));
     external_docs.object.classes.content.push(Element::String(StringElement::new("fixed-field")));
 }
 
 /// Add metadata for references
-fn add_ref_metadata(external_docs: &mut ExternalDocumentationElement, field_name: &str) {
-    let key = format!("ref_{}", field_name);
-    external_docs.object.meta.properties.insert(key, Value::Bool(true));
-    external_docs.object.meta.properties.insert("referenced-element".to_string(), Value::String("externalDocumentation".to_string()));
+fn add_ref_metadata(external_docs: &mut ExternalDocumentationElement, _field_name: &str) {
+    let key = format!("ref_{}", _field_name);
+    external_docs.object.meta.properties.insert(key, SimpleValue::bool(true));
+    external_docs.object.meta.properties.insert("referenced-element".to_string(), SimpleValue::string("externalDocumentation".to_string()));
 }
 
 /// Add metadata for specification extensions
-fn add_specification_extension_metadata(external_docs: &mut ExternalDocumentationElement, field_name: &str) {
-    let key = format!("specificationExtension_{}", field_name);
-    external_docs.object.meta.properties.insert(key, Value::Bool(true));
+fn add_specification_extension_metadata(external_docs: &mut ExternalDocumentationElement, _field_name: &str) {
+    let key = format!("specification-extension_{}", _field_name);
+    external_docs.object.meta.properties.insert(key, SimpleValue::bool(true));
     external_docs.object.classes.content.push(Element::String(StringElement::new("specification-extension")));
 }
 
 /// Add metadata for fallback handling
-fn add_fallback_metadata(external_docs: &mut ExternalDocumentationElement, field_name: &str) {
-    let key = format!("fallback_{}", field_name);
-    external_docs.object.meta.properties.insert(key, Value::Bool(true));
+fn add_fallback_metadata(external_docs: &mut ExternalDocumentationElement, _field_name: &str) {
+    let key = format!("fallback_{}", _field_name);
+    external_docs.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
 /// Add validation error metadata
-fn add_validation_error_metadata(external_docs: &mut ExternalDocumentationElement, field_name: &str, error_msg: &str) {
-    let key = format!("validationError_{}", field_name);
-    external_docs.object.meta.properties.insert(key, Value::String(error_msg.to_string()));
+fn add_validation_error_metadata(external_docs: &mut ExternalDocumentationElement, _field_name: &str, error_msg: &str) {
+    let key = format!("validationError_{}", _field_name);
+    external_docs.object.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));
 }
 
 /// Add overall processing metadata
 fn add_processing_metadata(external_docs: &mut ExternalDocumentationElement) {
-    external_docs.object.meta.properties.insert("processed".to_string(), Value::Bool(true));
-    external_docs.object.meta.properties.insert("fixedFieldsVisitor".to_string(), Value::Bool(true));
-    external_docs.object.meta.properties.insert("fallbackVisitor".to_string(), Value::Bool(true));
+    external_docs.object.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
+    external_docs.object.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::bool(true));
+    external_docs.object.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::bool(true));
 }
 
 /// Add spec path metadata
 fn add_spec_path_metadata(external_docs: &mut ExternalDocumentationElement) {
-    external_docs.object.meta.properties.insert("specPath".to_string(), Value::Array(vec![
-        Value::String("document".to_string()),
-        Value::String("objects".to_string()),
-        Value::String("ExternalDocumentation".to_string())
+    external_docs.object.meta.properties.insert("specPath".to_string(), SimpleValue::array(vec![
+        SimpleValue::string("document".to_string()),
+        SimpleValue::string("objects".to_string()),
+        SimpleValue::string("ExternalDocumentation".to_string())
     ]));
 }
 
 /// Validate URL format (basic validation)
 fn validate_url_format(external_docs: &mut ExternalDocumentationElement, url: &str) {
     if url.starts_with("http://") || url.starts_with("https://") {
-        external_docs.object.meta.properties.insert("validUrl".to_string(), Value::Bool(true));
+        external_docs.object.meta.properties.insert("validUrl".to_string(), SimpleValue::bool(true));
     } else {
         add_validation_error_metadata(external_docs, "url", "URL should start with http:// or https://");
     }
@@ -198,14 +196,13 @@ fn validate_external_docs(external_docs: &mut ExternalDocumentationElement) {
             "ExternalDocumentation must have a url field"
         );
     } else {
-        external_docs.object.meta.properties.insert("validExternalDocumentation".to_string(), Value::Bool(true));
+        external_docs.object.meta.properties.insert("validExternalDocumentation".to_string(), SimpleValue::bool(true));
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::fold::DefaultFolder;
 
     #[test]
     fn test_basic_external_docs_builder() {
@@ -238,8 +235,8 @@ mod tests {
         assert_eq!(external_docs.url().unwrap().content, "https://api.example.com/docs");
         
         // Verify fixed field metadata
-        assert!(external_docs.object.meta.properties.contains_key("fixedField_description"));
-        assert!(external_docs.object.meta.properties.contains_key("fixedField_url"));
+        assert!(external_docs.object.meta.properties.contains_key("fixed-field_description"));
+        assert!(external_docs.object.meta.properties.contains_key("fixed-field_url"));
         
         // Verify processing metadata
         assert!(external_docs.object.meta.properties.contains_key("processed"));
@@ -248,11 +245,11 @@ mod tests {
         assert!(external_docs.object.meta.properties.contains_key("specPath"));
         
         // Verify spec path
-        if let Some(Value::Array(path)) = external_docs.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(path)) = external_docs.object.meta.properties.get("specPath") {
             assert_eq!(path.len(), 3);
-            assert_eq!(path[0], Value::String("document".to_string()));
-            assert_eq!(path[1], Value::String("objects".to_string()));
-            assert_eq!(path[2], Value::String("ExternalDocumentation".to_string()));
+            assert!(matches!(&path[0], SimpleValue::String(s) if s == "document"));
+            assert!(matches!(&path[1], SimpleValue::String(s) if s == "objects"));
+            assert!(matches!(&path[2], SimpleValue::String(s) if s == "ExternalDocumentation"));
         }
         
         // Verify validation
@@ -289,9 +286,9 @@ mod tests {
         assert!(external_docs.object.get("x-team-owner").is_some());
         
         // Verify specification extension metadata
-        assert!(external_docs.object.meta.properties.contains_key("specificationExtension_x-internal-docs"));
-        assert!(external_docs.object.meta.properties.contains_key("specificationExtension_x-doc-version"));
-        assert!(external_docs.object.meta.properties.contains_key("specificationExtension_x-team-owner"));
+        assert!(external_docs.object.meta.properties.contains_key("specification-extension_x-internal-docs"));
+        assert!(external_docs.object.meta.properties.contains_key("specification-extension_x-doc-version"));
+        assert!(external_docs.object.meta.properties.contains_key("specification-extension_x-team-owner"));
         
         // Verify specification extension classes
         let has_spec_extension_class = external_docs.object.classes.content.iter().any(|class| {
@@ -320,7 +317,7 @@ mod tests {
         // Verify reference metadata
         assert!(external_docs.object.meta.properties.contains_key("ref_$ref"));
         assert!(external_docs.object.meta.properties.contains_key("referenced-element"));
-        if let Some(Value::String(ref_type)) = external_docs.object.meta.properties.get("referenced-element") {
+        if let Some(SimpleValue::String(ref_type)) = external_docs.object.meta.properties.get("referenced-element") {
             assert_eq!(ref_type, "externalDocumentation");
         }
     }
@@ -352,14 +349,14 @@ mod tests {
         assert_eq!(external_docs.url().unwrap().content, "https://api.example.com/docs");
         
         // 2. Fixed field metadata
-        assert!(external_docs.object.meta.properties.contains_key("fixedField_description"));
-        assert!(external_docs.object.meta.properties.contains_key("fixedField_url"));
+        assert!(external_docs.object.meta.properties.contains_key("fixed-field_description"));
+        assert!(external_docs.object.meta.properties.contains_key("fixed-field_url"));
         
         // 3. Specification extensions support
         assert!(external_docs.object.get("x-doc-language").is_some());
         assert!(external_docs.object.get("x-last-updated").is_some());
-        assert!(external_docs.object.meta.properties.contains_key("specificationExtension_x-doc-language"));
-        assert!(external_docs.object.meta.properties.contains_key("specificationExtension_x-last-updated"));
+        assert!(external_docs.object.meta.properties.contains_key("specification-extension_x-doc-language"));
+        assert!(external_docs.object.meta.properties.contains_key("specification-extension_x-last-updated"));
         
         // 4. Fallback behavior
         assert!(external_docs.object.get("custom-property").is_some());
@@ -371,11 +368,11 @@ mod tests {
         assert!(external_docs.object.meta.properties.contains_key("fallbackVisitor"));
         
         // 6. SpecPath metadata
-        if let Some(Value::Array(path)) = external_docs.object.meta.properties.get("specPath") {
+        if let Some(SimpleValue::Array(path)) = external_docs.object.meta.properties.get("specPath") {
             assert_eq!(path.len(), 3);
-            assert_eq!(path[0], Value::String("document".to_string()));
-            assert_eq!(path[1], Value::String("objects".to_string()));
-            assert_eq!(path[2], Value::String("ExternalDocumentation".to_string()));
+            assert!(matches!(&path[0], SimpleValue::String(s) if s == "document"));
+            assert!(matches!(&path[1], SimpleValue::String(s) if s == "objects"));
+            assert!(matches!(&path[2], SimpleValue::String(s) if s == "ExternalDocumentation"));
         }
         
         // 7. Validation

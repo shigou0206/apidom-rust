@@ -1,5 +1,5 @@
-use apidom_ast::fold::{FoldFromCst, JsonFolder, json_source_to_ast, json_cst_to_ast, Fold};
-use apidom_ast::minim_model::*;
+use apidom_ast::{FoldFromCst, JsonFolder, json_source_to_ast, json_cst_to_ast, Fold};
+use apidom_ast::*;
 use apidom_cst::CstParser;
 
 fn main() {
@@ -135,7 +135,7 @@ fn main() {
     match &ast_with_error {
         Element::Object(obj) => {
             if let Some(has_error) = obj.meta.properties.get("hasError") {
-                println!("AST 错误标记: {}", has_error);
+                println!("AST 错误标记: {:?}", has_error);
             }
             println!("成功解析的成员数量: {}", obj.content.len());
         }
@@ -149,12 +149,12 @@ fn main() {
     let mut ast_from_cst = cst_folder.fold_from_cst(&CstParser::parse(source_for_fold));
     
     // 应用字符串规范化
-    use apidom_ast::fold::folders::StringNormalizer;
+    use apidom_ast::folders::StringNormalizer;
     let mut normalizer = StringNormalizer;
     ast_from_cst = normalizer.fold_element(ast_from_cst);
     
     // 应用类型转换
-    use apidom_ast::fold::folders::TypeConverter;
+    use apidom_ast::folders::TypeConverter;
     let mut converter = TypeConverter::new("number".to_string());
     ast_from_cst = converter.fold_element(ast_from_cst);
     
