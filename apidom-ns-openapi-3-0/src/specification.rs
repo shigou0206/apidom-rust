@@ -1132,7 +1132,6 @@ fn apply_fixed_fields_processing(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::*;
 
     #[test]
     fn test_create_openapi_specification() {

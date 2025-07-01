@@ -1,4 +1,3 @@
-use serde_json::Value;
 use apidom_ast::*;
 use apidom_ns_openapi_3_0::fold_pass::{FoldPass, FoldPipeline};
 use apidom_ns_openapi_3_0::specification::create_openapi_specification;

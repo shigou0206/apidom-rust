@@ -1,6 +1,5 @@
 use apidom_ast::*;
 use crate::elements::parameter::ParameterElement;
-use serde_json::Value;
 
 /// Build a basic ParameterElement from a generic Element
 pub fn build_parameter(element: &Element) -> Option<ParameterElement> {

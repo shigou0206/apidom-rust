@@ -16,7 +16,6 @@
 use apidom_ast::*;
 use crate::elements::oauth_flows::OAuthFlowsElement;
 use crate::builder::oauth_flow_builder::{build_oauth_flow, build_and_decorate_oauth_flow};
-use serde_json::Value;
 
 /// Build a basic OAuthFlowsElement from a generic Element
 pub fn build_oauth_flows(element: &Element) -> Option<OAuthFlowsElement> {

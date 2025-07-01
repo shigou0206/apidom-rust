@@ -16,7 +16,6 @@
  */
 
 use apidom_ast::*;
-use serde_json::Value;
 use crate::elements::security_scheme::SecuritySchemeElement;
 use crate::builder::oauth_flows_builder::build_and_decorate_oauth_flows;
 

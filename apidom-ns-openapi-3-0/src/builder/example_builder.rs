@@ -75,7 +75,6 @@
 //! - ✅ SpecPath metadata injection: `["document", "objects", "Example"]`
 
 use apidom_ast::*;
-use serde_json::Value;
 use crate::elements::example::ExampleElement;
 
 /// Basic example builder - equivalent to simple constructor
@@ -235,7 +234,6 @@ fn add_spec_path_metadata(example: &mut ExampleElement) {
 mod tests {
     use super::*;
     use apidom_ast::DefaultFolder;
-    use apidom_ast::*;
 
     #[test]
     fn test_basic_example_builder() {

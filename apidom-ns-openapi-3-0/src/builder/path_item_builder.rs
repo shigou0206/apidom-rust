@@ -293,6 +293,7 @@ fn has_any_operation(path_item: &PathItemElement) -> bool {
     http_methods.iter().any(|method| path_item.operation(method).is_some())
 }
 
+#[allow(dead_code)]
 fn add_processing_metadata(obj: &mut ObjectElement) {
     obj.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
     obj.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::bool(true));
@@ -300,6 +301,7 @@ fn add_processing_metadata(obj: &mut ObjectElement) {
     obj.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::bool(true));
 }
 
+#[allow(dead_code)]
 fn add_validation_error_metadata(obj: &mut ObjectElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
     obj.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));

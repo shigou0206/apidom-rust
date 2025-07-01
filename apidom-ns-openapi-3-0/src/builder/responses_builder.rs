@@ -38,7 +38,6 @@
 //! - ✅ Comprehensive metadata injection and validation
 
 use apidom_ast::*;
-use serde_json::Value;
 use regex::Regex;
 use crate::elements::responses::ResponsesElement;
 use crate::builder::response_builder::build_and_decorate_response;

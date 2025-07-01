@@ -785,6 +785,7 @@ impl JsonFolder {
     }
     
     /// Create metadata from CST node location information
+    #[allow(dead_code)]
     fn create_meta_from_node(&self, node: &TreeCursorSyntaxNode) -> MetaElement {
         let mut meta = MetaElement::default();
         

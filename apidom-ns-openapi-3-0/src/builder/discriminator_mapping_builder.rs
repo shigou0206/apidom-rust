@@ -101,7 +101,6 @@ fn add_spec_path_metadata(mapping: &mut DiscriminatorMappingElement) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apidom_ast::*;
 
     #[test]
     fn test_basic_discriminator_mapping_builder() {

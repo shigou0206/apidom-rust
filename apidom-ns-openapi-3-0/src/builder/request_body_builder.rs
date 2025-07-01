@@ -267,11 +267,13 @@ fn validate_request_body(request_body: &RequestBodyElement) -> Option<()> {
     Some(())
 }
 
+#[allow(dead_code)]
 fn add_validation_error_metadata(obj: &mut ObjectElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
     obj.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));
 }
 
+#[allow(dead_code)]
 fn add_processing_metadata(obj: &mut ObjectElement) {
     obj.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
     obj.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::bool(true));

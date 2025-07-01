@@ -256,16 +256,19 @@ fn validate_paths(paths: &mut PathsElement) -> Option<()> {
     Some(())
 }
 
+#[allow(dead_code)]
 fn add_fixed_field_metadata(paths: &mut PathsElement, field_name: &str) {
     let key = format!("fixedField_{}", field_name);
     paths.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
+#[allow(dead_code)]
 fn add_specification_extension_metadata(paths: &mut PathsElement, field_name: &str) {
     let key = format!("specificationExtension_{}", field_name);
     paths.object.meta.properties.insert(key, SimpleValue::bool(true));
 }
 
+#[allow(dead_code)]
 fn add_validation_error_metadata(paths: &mut PathsElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
     paths.object.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));

@@ -1,6 +1,5 @@
 use apidom_ast::*;
 use crate::elements::server_variable::ServerVariableElement;
-use serde_json::Value;
 
 /// Comprehensive OpenAPI ServerVariable Builder
 /// 

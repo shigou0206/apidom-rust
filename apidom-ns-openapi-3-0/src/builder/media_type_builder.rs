@@ -43,7 +43,6 @@
 //! - ✅ Comprehensive metadata injection and validation
 
 use apidom_ast::*;
-use serde_json::Value;
 use crate::elements::media_type::MediaTypeElement;
 use crate::builder::encoding_builder::build_and_decorate_encoding;
 use crate::builder::example_builder::build_and_decorate_example;
