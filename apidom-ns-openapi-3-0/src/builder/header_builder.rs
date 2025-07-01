@@ -172,8 +172,10 @@ where
             },
             // $ref handling
             "$ref" => {
-                header.object.set("$ref", processed_value);
-                add_ref_metadata(&mut header, "$ref");
+                if let Element::String(ref_str) = &processed_value {
+                    header.object.set("$ref", processed_value.clone());
+                    add_ref_metadata(&mut header, &ref_str.content);
+                }
             },
             // Specification extensions (x-* fields)
             key if key.starts_with("x-") => {
@@ -227,17 +229,25 @@ fn process_schema_field(element: &Element, header: &mut HeaderElement) -> Elemen
     if is_reference_like_element(element) {
         // Add reference metadata
         if let Element::Object(obj) = element {
-            if obj.get("$ref").is_some() {
+            if let Some(Element::String(ref_str)) = obj.get("$ref") {
+                let mut schema_obj = obj.clone();
+                schema_obj.meta.properties.insert("referenced-element".to_string(), SimpleValue::String("schema".to_string()));
+                schema_obj.meta.properties.insert("reference-path".to_string(), SimpleValue::String(ref_str.content.clone()));
                 header.object.meta.properties.insert("schema-referenced-element".to_string(), SimpleValue::String("schema".to_string()));
                 add_schema_ref_metadata(header);
+                return Element::Object(schema_obj);
             }
         }
-    } else {
+        element.clone()
+    } else if let Element::Object(_) = element {
         // It's a schema object
         add_schema_metadata(header);
+        element.clone()
+    } else {
+        // Invalid schema type
+        add_validation_error_metadata(header, "schema", "Expected object or reference");
+        element.clone()
     }
-    
-    element.clone()
 }
 
 /// Process content field with ContentVisitor pattern
@@ -290,10 +300,10 @@ fn add_fixed_field_metadata(header: &mut HeaderElement, field_name: &str) {
 }
 
 /// Add metadata for references
-fn add_ref_metadata(header: &mut HeaderElement, field_name: &str) {
-    let key = format!("ref_{}", field_name);
-    header.object.meta.properties.insert(key, SimpleValue::Bool(true));
+fn add_ref_metadata(header: &mut HeaderElement, ref_path: &str) {
+    header.object.meta.properties.insert("ref_$ref".to_string(), SimpleValue::Bool(true));
     header.object.meta.properties.insert("referenced-element".to_string(), SimpleValue::String("header".to_string()));
+    header.object.meta.properties.insert("reference-path".to_string(), SimpleValue::String(ref_path.to_string()));
 }
 
 /// Add metadata for specification extensions

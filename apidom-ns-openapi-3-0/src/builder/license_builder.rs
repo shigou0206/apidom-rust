@@ -129,6 +129,7 @@ fn convert_to_string_element(element: &Element) -> Option<StringElement> {
 fn add_fixed_field_metadata(license: &mut LicenseElement, field_name: &str) {
     let key = format!("fixed-field_{}", field_name);
     license.object.meta.properties.insert(key, SimpleValue::Bool(true));
+    license.object.classes.content.push(Element::String(StringElement::new("fixed-field")));
 }
 
 /// Add metadata for references
@@ -140,14 +141,14 @@ fn add_ref_metadata(license: &mut LicenseElement, ref_path: &str) {
 /// Add metadata for specification extensions
 fn add_specification_extension_metadata(license: &mut LicenseElement, field_name: &str) {
     let key = format!("specificationExtension_{}", field_name);
-    license.object.meta.properties.insert(key, SimpleValue::bool(true));
+    license.object.meta.properties.insert(key, SimpleValue::Bool(true));
     license.object.classes.content.push(Element::String(StringElement::new("specification-extension")));
 }
 
 /// Add metadata for fallback handling
 fn add_fallback_metadata(license: &mut LicenseElement, field_name: &str) {
     let key = format!("fallback_{}", field_name);
-    license.object.meta.properties.insert(key, SimpleValue::bool(true));
+    license.object.meta.properties.insert(key, SimpleValue::Bool(true));
     license.object.classes.content.push(Element::String(StringElement::new("fallback-field")));
 }
 
@@ -167,10 +168,10 @@ fn add_processing_metadata(license: &mut LicenseElement) {
 
 /// Add spec path metadata
 fn add_spec_path_metadata(license: &mut LicenseElement) {
-    license.object.meta.properties.insert("specPath".to_string(), SimpleValue::array(vec![
-        SimpleValue::string("document".to_string()),
-        SimpleValue::string("objects".to_string()),
-        SimpleValue::string("License".to_string())
+    license.object.meta.properties.insert("spec-path".to_string(), SimpleValue::Array(vec![
+        SimpleValue::String("document".to_string()),
+        SimpleValue::String("objects".to_string()),
+        SimpleValue::String("License".to_string())
     ]));
 }
 
