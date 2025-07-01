@@ -1,7 +1,21 @@
 [package]
 name = "apidom-ns-openapi-3-1"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
 apidom-ast = { path = "../apidom-ast" }
+apidom-cst = { path = "../apidom-cst" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+regex = "1.0"
+thiserror = "1.0"
+lazy_static = "1.4"
+
+[dev-dependencies]
+tempfile = "3.0"
+criterion = "0.5"
+
+[[example]]
+name = "openapi_3_1_demo"
+path = "examples/openapi_3_1_demo.rs"

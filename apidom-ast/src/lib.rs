@@ -1,5 +1,5 @@
 mod minim_model;
-mod fold;
+pub mod fold;
 mod simple_value;
 
 // Re-export commonly used items for convenience

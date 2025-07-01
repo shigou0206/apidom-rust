@@ -266,6 +266,17 @@ pub struct NumberElement {
     pub content: f64,
 }
 
+impl NumberElement {
+    pub fn new(value: f64) -> Self {
+        Self {
+            element: "number".to_string(),
+            meta: MetaElement::default(),
+            attributes: AttributesElement::default(),
+            content: value,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct NullElement {
     pub element: String,
