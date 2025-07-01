@@ -173,6 +173,7 @@ fn convert_to_string_element(element: &Element) -> Option<StringElement> {
 fn add_fixed_field_metadata(info: &mut InfoElement, field_name: &str) {
     let key = format!("fixed-field_{}", field_name);
     info.object.meta.properties.insert(key, SimpleValue::Bool(true));
+    info.object.classes.content.push(Element::String(StringElement::new("fixed-field")));
 }
 
 /// Add metadata for references

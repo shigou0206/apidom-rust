@@ -201,7 +201,7 @@ where
                 add_fixed_field_metadata(&mut schema, &key_str);
             },
             
-            // Fallback for unknown fields
+            // Unknown fields - preserve with fallback metadata
             _ => {
                 schema.base.object.set(&key_str, processed_value);
                 add_fallback_metadata(&mut schema, &key_str);
@@ -209,10 +209,9 @@ where
         }
     }
     
-    // Add comprehensive metadata
+    // Add schema-specific metadata
     add_processing_metadata(&mut schema);
     add_spec_path_metadata(&mut schema);
-    validate_schema(&mut schema);
     
     Some(schema)
 }
@@ -220,32 +219,34 @@ where
 /// Process schema array fields (allOf, anyOf, oneOf)
 /// Equivalent to TypeScript AllOfVisitor, AnyOfVisitor, OneOfVisitor
 fn process_schema_array_field(element: &Element, field_name: &str, schema: &mut OpenApiSchemaElement) -> Element {
-    if let Element::Array(arr) = element {
-        let mut processed_array = arr.clone();
+    if let Element::Array(array) = element {
+        let mut processed_array = ArrayElement::new_empty();
+        let mut has_reference = false;
+        let mut has_schema = false;
         
-        // Process each schema in the array and inject reference metadata
-        for item in &mut processed_array.content {
-            if is_reference_like_element(item) {
-                inject_schema_reference_metadata(item);
-                add_schema_composition_metadata(schema, field_name, "reference");
+        for item in &array.content {
+            let processed_item = process_schema_field(item, schema);
+            if is_reference_like_element(&processed_item) {
+                has_reference = true;
             } else {
-                add_schema_composition_metadata(schema, field_name, "schema");
+                has_schema = true;
             }
+            processed_array.content.push(processed_item);
         }
         
-        // Add array processing metadata
-        processed_array.meta.properties.insert(
-            format!("{}_processed", field_name),
-            SimpleValue::Bool(true)
-        );
-        processed_array.meta.properties.insert(
-            "schema_array_visitor".to_string(),
-            SimpleValue::String(field_name.to_string())
-        );
+        // Add composition metadata
+        schema.base.object.meta.properties.insert(format!("has{}", field_name.chars().next().unwrap().to_uppercase().chain(field_name[1..].chars()).collect::<String>()), SimpleValue::Bool(true));
+        if has_reference {
+            schema.base.object.meta.properties.insert(format!("{}_{}", field_name, "reference"), SimpleValue::Bool(true));
+        }
+        if has_schema {
+            schema.base.object.meta.properties.insert(format!("{}_{}", field_name, "schema"), SimpleValue::Bool(true));
+        }
         
+        add_fixed_field_metadata(schema, field_name);
         Element::Array(processed_array)
     } else {
-        add_validation_error_metadata(schema, field_name, "Expected array value");
+        // If not an array, preserve original element
         element.clone()
     }
 }
@@ -255,17 +256,24 @@ fn process_schema_array_field(element: &Element, field_name: &str, schema: &mut 
 fn process_properties_field(element: &Element, schema: &mut OpenApiSchemaElement) -> Element {
     if let Element::Object(obj) = element {
         let mut processed_obj = obj.clone();
-        
+        let mut has_reference = false;
+        let mut has_schema = false;
         // Process each property schema and inject reference metadata
         for member in &mut processed_obj.content {
             if is_reference_like_element(&member.value) {
                 inject_schema_reference_metadata(&mut member.value);
                 add_properties_metadata(schema, "reference");
+                schema.base.object.meta.properties.insert("properties_reference".to_string(), SimpleValue::Bool(true));
+                has_reference = true;
             } else {
                 add_properties_metadata(schema, "schema");
+                schema.base.object.meta.properties.insert("properties_schema".to_string(), SimpleValue::Bool(true));
+                has_schema = true;
             }
         }
-        
+        if has_reference || has_schema {
+            schema.base.object.meta.properties.insert("hasProperties".to_string(), SimpleValue::Bool(true));
+        }
         // Add properties processing metadata
         processed_obj.meta.properties.insert(
             "properties_processed".to_string(),
@@ -275,7 +283,6 @@ fn process_properties_field(element: &Element, schema: &mut OpenApiSchemaElement
             "properties_visitor".to_string(),
             SimpleValue::Bool(true)
         );
-        
         Element::Object(processed_obj)
     } else {
         add_validation_error_metadata(schema, "properties", "Expected object value");
@@ -296,6 +303,7 @@ fn process_items_field(element: &Element, schema: &mut OpenApiSchemaElement) -> 
             } else {
                 add_items_metadata(schema, "schema");
             }
+            schema.base.object.meta.properties.insert("hasItems".to_string(), SimpleValue::Bool(true));
             processed_element
         },
         Element::Array(arr) => {
@@ -307,6 +315,8 @@ fn process_items_field(element: &Element, schema: &mut OpenApiSchemaElement) -> 
                 }
             }
             add_items_metadata(schema, "array");
+            schema.base.object.meta.properties.insert("hasItems".to_string(), SimpleValue::Bool(true));
+            schema.base.object.meta.properties.insert("items_array".to_string(), SimpleValue::Bool(true));
             Element::Array(processed_array)
         },
         _ => {
@@ -367,7 +377,7 @@ fn inject_schema_reference_metadata(element: &mut Element) {
             "referenced-element".to_string(),
             SimpleValue::String("schema".to_string())
         );
-        obj.add_class("schema-reference");
+        obj.add_class("reference");
     }
 }
 
@@ -388,87 +398,75 @@ fn convert_to_boolean_element(element: &Element) -> Option<BooleanElement> {
 
 // Metadata injection functions
 
-/// Add fixed field metadata
+/// Add metadata for fixed fields
 fn add_fixed_field_metadata(schema: &mut OpenApiSchemaElement, field_name: &str) {
-    let key = format!("fixed-field_{}", field_name);
-    schema.base.object.meta.properties.insert(key, SimpleValue::Bool(true));
+    let key = format!("fixedField_{}", field_name);
+    schema.base.object.meta.properties.insert(key, SimpleValue::bool(true));
+    schema.base.object.classes.content.push(Element::String(StringElement::new("fixed-field")));
 }
 
-/// Add validation error metadata
+/// Add metadata for validation errors
 fn add_validation_error_metadata(schema: &mut OpenApiSchemaElement, field_name: &str, error_msg: &str) {
     let key = format!("validationError_{}", field_name);
-    schema.base.object.meta.properties.insert(key, SimpleValue::String(error_msg.to_string()));
+    schema.base.object.meta.properties.insert(key, SimpleValue::string(error_msg.to_string()));
 }
 
-/// Add specification extension metadata
+/// Add metadata for specification extensions
 fn add_specification_extension_metadata(schema: &mut OpenApiSchemaElement, field_name: &str) {
-    schema.base.object.meta.properties.insert(
-        format!("specificationExtension_{}", field_name),
-        SimpleValue::Bool(true)
-    );
-    schema.base.object.add_class("specification-extension");
+    let key = format!("specificationExtension_{}", field_name);
+    schema.base.object.meta.properties.insert(key, SimpleValue::bool(true));
+    schema.base.object.classes.content.push(Element::String(StringElement::new("specification-extension")));
 }
 
-/// Add fallback metadata
+/// Add metadata for fallback fields
 fn add_fallback_metadata(schema: &mut OpenApiSchemaElement, field_name: &str) {
-    schema.base.object.meta.properties.insert(
-        format!("fallback_{}", field_name),
-        SimpleValue::Bool(true)
-    );
+    let key = format!("fallback-field-{}", field_name);
+    schema.base.object.meta.properties.insert(key, SimpleValue::bool(true));
+    schema.base.object.classes.content.push(Element::String(StringElement::new("fallback-field")));
 }
 
-/// Add schema composition metadata
+/// Add metadata for schema composition fields
 fn add_schema_composition_metadata(schema: &mut OpenApiSchemaElement, field_name: &str, element_type: &str) {
-    schema.base.object.meta.properties.insert(
-        format!("{}_{}", field_name, element_type),
-        SimpleValue::Bool(true)
-    );
+    let key = format!("schema-composition-{}", field_name);
+    schema.base.object.meta.properties.insert(key, SimpleValue::string(element_type.to_string()));
+    schema.base.object.classes.content.push(Element::String(StringElement::new("schema-composition")));
 }
 
-/// Add properties metadata
+/// Add metadata for properties field
 fn add_properties_metadata(schema: &mut OpenApiSchemaElement, element_type: &str) {
-    schema.base.object.meta.properties.insert(
-        format!("properties_{}", element_type),
-        SimpleValue::Bool(true)
-    );
+    schema.base.object.meta.properties.insert("properties-type".to_string(), SimpleValue::string(element_type.to_string()));
+    schema.base.object.classes.content.push(Element::String(StringElement::new("properties")));
 }
 
-/// Add items metadata
+/// Add metadata for items field
 fn add_items_metadata(schema: &mut OpenApiSchemaElement, element_type: &str) {
-    schema.base.object.meta.properties.insert(
-        format!("items_{}", element_type),
-        SimpleValue::Bool(true)
-    );
+    schema.base.object.meta.properties.insert("items-type".to_string(), SimpleValue::string(element_type.to_string()));
+    schema.base.object.classes.content.push(Element::String(StringElement::new("items")));
 }
 
-/// Add schema reference metadata
+/// Add metadata for schema references
 fn add_schema_reference_metadata(schema: &mut OpenApiSchemaElement) {
-    schema.base.object.meta.properties.insert("referenced-element".to_string(), SimpleValue::String("schema".to_string()));
-    schema.base.object.meta.properties.insert("reference-path".to_string(), SimpleValue::String("#".to_string()));
+    schema.base.object.add_class("reference");
+    schema.base.object.meta.properties.insert("referenced-element".to_string(), SimpleValue::string("schema".to_string()));
 }
 
-/// Add type metadata
+/// Add metadata for type field
 fn add_type_metadata(schema: &mut OpenApiSchemaElement, type_format: &str) {
-    schema.base.object.meta.properties.insert(
-        format!("type_{}", type_format),
-        SimpleValue::Bool(true)
-    );
+    let key = format!("type_{}", type_format);
+    schema.base.object.meta.properties.insert(key, SimpleValue::bool(true));
+    schema.base.object.classes.content.push(Element::String(StringElement::new("type")));
 }
 
-/// Add overall processing metadata
+/// Add metadata for schema processing
 fn add_processing_metadata(schema: &mut OpenApiSchemaElement) {
-    schema.base.object.meta.properties.insert("processed".to_string(), SimpleValue::Bool(true));
-    schema.base.object.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::Bool(true));
-    schema.base.object.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::Bool(true));
-    schema.base.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::Bool(true));
-    
-    // Add schema-specific visitor metadata
-    schema.base.object.meta.properties.insert("schemaVisitor".to_string(), SimpleValue::Bool(true));
-    schema.base.object.meta.properties.insert("schemaOrReferenceVisitor".to_string(), SimpleValue::Bool(true));
-    
-    // Add schema classes
+    schema.base.object.meta.properties.insert("processed".to_string(), SimpleValue::bool(true));
+    schema.base.object.meta.properties.insert("fixedFieldsVisitor".to_string(), SimpleValue::bool(true));
+    schema.base.object.meta.properties.insert("schemaVisitor".to_string(), SimpleValue::bool(true));
+    schema.base.object.meta.properties.insert("fallbackVisitor".to_string(), SimpleValue::bool(true));
+    schema.base.object.meta.properties.insert("canSupportSpecificationExtensions".to_string(), SimpleValue::bool(true));
     schema.base.object.add_class("schema");
     schema.base.object.add_class("openapi-schema");
+    schema.base.object.add_class("json-schema-draft-4");
 }
 
 /// Add spec path metadata

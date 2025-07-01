@@ -1,33 +1,6 @@
 use crate::*;
 use crate::simple_value::SimpleValue;
 use std::collections::HashMap;
-
-/// Core folding trait for transforming Minim elements.
-/// 
-/// This trait provides a visitor-like pattern for recursively transforming
-/// Element trees. Each method has a default implementation that preserves
-/// the structure while allowing selective transformation.
-/// 
-/// # Examples
-/// 
-/// ```
-/// use apidom_ast::fold::{Fold, DefaultFolder};
-/// use apidom_ast::*;
-/// 
-/// // Create a folder that converts all strings to uppercase
-/// struct UppercaseFolder;
-/// 
-/// impl Fold for UppercaseFolder {
-///     fn fold_string_element(&mut self, mut element: StringElement) -> Element {
-///         element.content = element.content.to_uppercase();
-///         Element::String(element)
-///     }
-/// }
-/// 
-/// let mut folder = UppercaseFolder;
-/// let element = Element::String(StringElement::new("hello"));
-/// let result = folder.fold_element(element);
-/// ```
 pub trait Fold {
     /// Fold any element - the main entry point
     fn fold_element(&mut self, element: Element) -> Element {
@@ -213,17 +186,7 @@ pub trait Fold {
 /// This is useful as a base for implementing specific transformations
 /// by overriding only the methods you need to change.
 /// 
-/// # Examples
-/// 
-/// ```
-/// use apidom_ast::fold::{Fold, DefaultFolder};
-/// use apidom_ast::*;
-/// 
-/// let mut folder = DefaultFolder;
-/// let element = Element::String(StringElement::new("test"));
-/// let result = folder.fold_element(element);
-/// // result is identical to input
-/// ```
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct DefaultFolder;
 
@@ -249,17 +212,7 @@ impl Fold for DefaultFolder {
 /// 
 /// This allows you to compose multiple transformations together.
 /// 
-/// # Examples
-/// 
-/// ```
-/// use apidom_ast::fold::{Fold, CompositeFolder};
-/// 
-/// struct FirstFolder;
-/// struct SecondFolder;
-/// 
-/// impl Fold for FirstFolder { /* ... */ }
-/// impl Fold for SecondFolder { /* ... */ }
-/// 
+
 /// let folder = CompositeFolder::new(vec![
 ///     Box::new(FirstFolder),
 ///     Box::new(SecondFolder),

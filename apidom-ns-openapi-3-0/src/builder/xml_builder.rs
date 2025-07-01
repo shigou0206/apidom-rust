@@ -89,7 +89,8 @@ where
                     // Handle $ref with reference metadata
                     if let Element::String(ref_str) = value {
                         xml.object.set("$ref", value.clone());
-                        add_reference_metadata(&mut xml, &ref_str.content, "xml");
+                        add_reference_metadata(&mut xml, "xml", &ref_str.content);
+                        xml.object.add_class("reference");
                     }
                 }
                 _ => {
@@ -103,6 +104,7 @@ where
                         };
                         xml.object.set(key_str, processed_value);
                         add_specification_extension_metadata(&mut xml, key_str);
+                        xml.object.add_class(&format!("specificationExtension_{}", key_str));
                     } else {
                         // Fallback field - preserve unknown fields
                         let processed_value = if let Some(ref mut f) = folder {

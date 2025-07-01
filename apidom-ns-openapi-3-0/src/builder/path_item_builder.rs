@@ -181,8 +181,9 @@ fn convert_to_string_element(element: &Element) -> Option<StringElement> {
 
 /// Add metadata for fixed fields
 fn add_fixed_field_metadata(obj: &mut ObjectElement, field_name: &str) {
-    let key = format!("fixed-field_{}", field_name);
-    obj.meta.properties.insert(key, SimpleValue::Bool(true));
+    let key = format!("fixed-field-{}", field_name);
+    obj.meta.properties.insert(key, SimpleValue::bool(true));
+    obj.classes.content.push(Element::String(StringElement::new("fixed-field")));
 }
 
 /// Add metadata for servers array processing
@@ -209,7 +210,7 @@ fn add_parameters_metadata(obj: &mut ObjectElement) {
     );
 }
 
-/// Add metadata for HTTP operation methods
+/// Add metadata for operation fields
 fn add_operation_metadata(obj: &mut ObjectElement, method: &str) {
     obj.meta.properties.insert(
         format!("has-{}-operation", method),
@@ -219,25 +220,26 @@ fn add_operation_metadata(obj: &mut ObjectElement, method: &str) {
         "has-operations".to_string(),
         SimpleValue::bool(true)
     );
+    obj.classes.content.push(Element::String(StringElement::new("operation")));
 }
 
 /// Add metadata for specification extensions
-fn add_specification_extension_metadata(obj: &mut ObjectElement, field_name: &str) {
-    let key = format!("specification-extension_{}", field_name);
-    obj.meta.properties.insert(key, SimpleValue::Bool(true));
+fn add_specification_extension_metadata(obj: &mut ObjectElement, _field_name: &str) {
+    obj.meta.properties.insert("specification-extension".to_string(), SimpleValue::bool(true));
+    obj.classes.content.push(Element::String(StringElement::new("specification-extension")));
 }
 
 /// Add metadata for fallback fields
 fn add_fallback_field_metadata(obj: &mut ObjectElement, field_name: &str) {
-    obj.meta.properties.insert(
-        format!("fallback-field-{}", field_name),
-        SimpleValue::bool(true)
-    );
+    let key = format!("fallback-field-{}", field_name);
+    obj.meta.properties.insert(key, SimpleValue::bool(true));
+    obj.classes.content.push(Element::String(StringElement::new("fallback-field")));
 }
 
 /// Add metadata for $ref references
 fn add_reference_metadata(obj: &mut ObjectElement, ref_path: &str, element_type: &str) {
     obj.add_class("reference");
+    obj.add_class("reference-value");
     obj.meta.properties.insert(
         "referenced-element".to_string(),
         SimpleValue::string(element_type.to_string())
@@ -252,13 +254,16 @@ fn add_reference_metadata(obj: &mut ObjectElement, ref_path: &str, element_type:
     );
 }
 
-/// Add spec path metadata (equivalent to TypeScript specPath)
+/// Add spec path metadata
 fn add_spec_path_metadata(obj: &mut ObjectElement) {
-    obj.meta.properties.insert("specPath".to_string(), SimpleValue::array(vec![
-        SimpleValue::string("document".to_string()),
-        SimpleValue::string("objects".to_string()),
-        SimpleValue::string("PathItem".to_string())
-    ]));
+    obj.meta.properties.insert(
+        "spec-path".to_string(),
+        SimpleValue::Array(vec![
+            SimpleValue::String("document".to_string()),
+            SimpleValue::String("objects".to_string()),
+            SimpleValue::String("PathItem".to_string())
+        ])
+    );
 }
 
 /// Validate PathItem structure
@@ -771,8 +776,8 @@ mod tests {
         );
         
         // 7. Spec path metadata (equivalent to TypeScript specPath)
-        assert!(path_item.object.meta.properties.contains_key("specPath"));
-        if let Some(SimpleValue::Array(spec_path)) = path_item.object.meta.properties.get("specPath") {
+        assert!(path_item.object.meta.properties.contains_key("spec-path"));
+        if let Some(SimpleValue::Array(spec_path)) = path_item.object.meta.properties.get("spec-path") {
             assert_eq!(spec_path.len(), 3);
             assert_eq!(spec_path[0], SimpleValue::String("document".to_string()));
             assert_eq!(spec_path[1], SimpleValue::String("objects".to_string()));

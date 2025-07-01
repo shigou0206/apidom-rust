@@ -306,13 +306,13 @@ fn inject_operation_metadata(obj: &mut ObjectElement, source: &ObjectElement) {
     // Add element type metadata
     obj.meta.properties.insert(
         "element-type".to_string(),
-        SimpleValue::string("operation".to_string())
+        SimpleValue::String("operation".to_string())
     );
     
     // Add field count metadata
     obj.meta.properties.insert(
         "field-count".to_string(),
-        SimpleValue::from(source.content.len() as i64)
+        SimpleValue::Integer(source.content.len() as i64)
     );
     
     // Add validation metadata
@@ -325,33 +325,35 @@ fn inject_operation_metadata(obj: &mut ObjectElement, source: &ObjectElement) {
     if !has_responses {
         obj.meta.properties.insert(
             "validation-error".to_string(),
-            SimpleValue::string("Missing required 'responses' field".to_string())
+            SimpleValue::String("Missing required 'responses' field".to_string())
         );
     }
     
     // Add processing timestamp
     obj.meta.properties.insert(
         "processed-at".to_string(),
-        SimpleValue::string(chrono::Utc::now().to_rfc3339())
+        SimpleValue::String(chrono::Utc::now().to_rfc3339())
     );
 }
 
 /// Add metadata for fixed fields
 fn add_fixed_field_metadata(obj: &mut ObjectElement, field_name: &str) {
-    let key = format!("fixed-field_{}", field_name);
-    obj.meta.properties.insert(key, SimpleValue::Bool(true));
+    let key = format!("fixed-field-{}", field_name);
+    obj.meta.properties.insert(key, SimpleValue::bool(true));
+    obj.classes.content.push(Element::String(StringElement::new("fixed-field")));
 }
 
 /// Add metadata for specification extensions
-fn add_specification_extension_metadata(obj: &mut ObjectElement, field_name: &str) {
-    let key = format!("specification-extension_{}", field_name);
-    obj.meta.properties.insert(key, SimpleValue::Bool(true));
+fn add_specification_extension_metadata(obj: &mut ObjectElement, _field_name: &str) {
+    obj.meta.properties.insert("specification-extension".to_string(), SimpleValue::bool(true));
+    obj.classes.content.push(Element::String(StringElement::new("specification-extension")));
 }
 
 /// Add metadata for fallback fields
 fn add_fallback_field_metadata(obj: &mut ObjectElement, field_name: &str) {
-    let key = format!("fallback-{}", field_name);
+    let key = format!("fallback_field_{}", field_name);
     obj.meta.properties.insert(key, SimpleValue::bool(true));
+    obj.classes.content.push(Element::String(StringElement::new("fallback-field")));
 }
 
 /// Add metadata for $ref references
@@ -689,11 +691,11 @@ mod tests {
 
         // Check fallback field metadata
         assert_eq!(
-            operation.object.meta.properties.get("fallback-field-unknownField"),
+            operation.object.meta.properties.get("fallback_field_unknownField"),
             Some(&SimpleValue::bool(true))
         );
         assert_eq!(
-            operation.object.meta.properties.get("fallback-field-anotherUnknown"),
+            operation.object.meta.properties.get("fallback_field_anotherUnknown"),
             Some(&SimpleValue::bool(true))
         );
     }
