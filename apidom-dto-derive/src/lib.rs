@@ -85,16 +85,7 @@ use proc_macro::TokenStream;
 use quote::{quote, format_ident};
 use syn::{parse_macro_input, DeriveInput, Data, Fields, Meta};
 use darling::FromDeriveInput;
-
-/// Field specification trait
-pub trait DtoFieldSpecs {
-    fn field_specs() -> Vec<FieldSpec>;
-}
-
-/// Object element conversion trait
-pub trait FromObjectElement {
-    fn from_object_element(obj: &ObjectElement) -> Self;
-}
+use apidom_dto_core::{DtoFieldSpecs, FromObjectElement, FieldSpec, FieldType, ObjectElement};
 
 /// Field attribute configuration
 #[derive(Debug, FromDeriveInput, Default)]

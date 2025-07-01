@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use apidom_ast::minim_model::ObjectElement;
+pub use apidom_ast::minim_model::ObjectElement;
 
 /// Field type enumeration
 #[derive(Debug, Clone, PartialEq)]
