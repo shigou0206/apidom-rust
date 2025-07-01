@@ -124,6 +124,8 @@ impl BuilderDispatch {
             for member in &obj.content {
                 if let Element::String(key_str) = member.key.as_ref() {
                     let field_name = &key_str.content;
+                    // 为子字段派生新的上下文（目前尚未递归调用其他 builder，但为后续做好准备）
+                    let _child_ctx = ctx.child(field_name);
                     self.info_handlers.dispatch(field_name, member.value.as_ref(), &mut info, None);
                 }
             }
@@ -145,6 +147,8 @@ impl BuilderDispatch {
             for member in &obj.content {
                 if let Element::String(key_str) = member.key.as_ref() {
                     let field_name = &key_str.content;
+                    // 为子字段派生新的上下文（目前尚未递归调用其他 builder，但为后续做好准备）
+                    let _child_ctx = ctx.child(field_name);
                     self.server_handlers.dispatch(field_name, member.value.as_ref(), &mut server, None);
                 }
             }
@@ -165,6 +169,8 @@ impl BuilderDispatch {
             for member in &obj.content {
                 if let Element::String(key_str) = member.key.as_ref() {
                     let field_name = &key_str.content;
+                    // 为子字段派生新的上下文（目前尚未递归调用其他 builder，但为后续做好准备）
+                    let _child_ctx = ctx.child(field_name);
                     self.path_item_handlers.dispatch(field_name, member.value.as_ref(), &mut path_item, None);
                 }
             }
