@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SimpleValue {
     Null,
     Bool(bool),

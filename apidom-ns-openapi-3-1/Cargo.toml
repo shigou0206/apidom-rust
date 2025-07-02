@@ -16,6 +16,7 @@ lazy_static = "1.4"
 tempfile = "3.0"
 criterion = "0.5"
 
+
 [[example]]
 name = "openapi_3_1_demo"
 path = "examples/openapi_3_1_demo.rs"
