@@ -1,16 +1,15 @@
-use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
-use url::Url;
-use validator::{Validate, ValidationError};
+use crate::minim_model::Element;
 use crate::simple_value::SimpleValue;
 use crate::validators::{
-    validate_parameter_in,
-    validate_parameter_style,
-    validate_content_size,
-    validate_parameter_struct,
-    validate_license_struct,
+    validate_content_size, validate_license_struct, validate_parameter_in,
+    validate_parameter_struct, validate_parameter_style,
 };
+use apidom_derive::BuildFromElement;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use url::Url;
+use validator::{Validate, ValidationError};
 
 fn default_false() -> bool {
     false
@@ -196,7 +195,7 @@ pub struct Header {
     #[serde(default)]
     pub schema: Option<SchemaOrRef>,
     #[serde(default = "default_simple_style")]
-    pub style: String,  // "simple"
+    pub style: String, // "simple"
     #[serde(default = "default_false")]
     pub explode: bool,
     #[serde(default)]
@@ -326,7 +325,7 @@ pub struct Encoding {
     #[serde(default = "default_empty_map")]
     pub headers: HashMap<String, HeaderOrRef>,
     #[serde(default = "default_form_style")]
-    pub style: String,  // "form", "spaceDelimited", "pipeDelimited", "deepObject"
+    pub style: String, // "form", "spaceDelimited", "pipeDelimited", "deepObject"
     #[serde(default = "default_false")]
     pub explode: bool,
     #[serde(default = "default_false")]
@@ -379,7 +378,7 @@ pub struct Parameter {
     pub name: String,
     #[serde(rename = "in")]
     #[validate(custom(function = "validate_parameter_in"))]
-    pub location: String,  // "query", "header", "path", "cookie"
+    pub location: String, // "query", "header", "path", "cookie"
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default = "default_false")]
@@ -390,7 +389,7 @@ pub struct Parameter {
     pub allow_empty_value: bool,
     #[serde(default)]
     #[validate(custom(function = "validate_parameter_style"))]
-    pub style: Option<String>,  // "matrix", "label", "simple", "form", "spaceDelimited", "pipeDelimited", "deepObject"
+    pub style: Option<String>, // "matrix", "label", "simple", "form", "spaceDelimited", "pipeDelimited", "deepObject"
     #[serde(default = "default_false")]
     pub explode: bool,
     #[serde(default = "default_false")]
@@ -511,7 +510,7 @@ pub struct Components {
 #[serde(deny_unknown_fields)]
 #[validate(schema(function = "crate::validators::validate_info_struct"))]
 pub struct Info {
-    #[validate(length(min=1))]
+    #[validate(length(min = 1))]
     pub title: String,
     #[serde(default)]
     pub summary: Option<String>,
@@ -523,7 +522,7 @@ pub struct Info {
     pub contact: Option<Contact>,
     #[serde(default)]
     pub license: Option<License>,
-    #[validate(length(min=1))]
+    #[validate(length(min = 1))]
     pub version: String,
     #[serde(flatten)]
     pub extensions: HashMap<String, SimpleValue>,
@@ -573,7 +572,7 @@ pub struct License {
 #[serde(deny_unknown_fields)]
 #[validate(schema(function = "crate::validators::validate_tag_struct"))]
 pub struct Tag {
-    #[validate(length(min=1))]
+    #[validate(length(min = 1))]
     pub name: String,
     #[serde(default)]
     pub description: Option<String>,
@@ -698,13 +697,13 @@ impl Validate for Responses {
 
         // Status code pattern validation (collectively reported)
         let re = Regex::new(r"^[1-5](?:[0-9]{2}|XX)$").unwrap();
-        let invalid_found = self
-            .status_codes
-            .keys()
-            .any(|key| !re.is_match(key));
+        let invalid_found = self.status_codes.keys().any(|key| !re.is_match(key));
 
         if invalid_found {
-            errors.add("status_codes", ValidationError::new("invalid_status_code_key"));
+            errors.add(
+                "status_codes",
+                ValidationError::new("invalid_status_code_key"),
+            );
         }
 
         if errors.is_empty() {
@@ -808,7 +807,7 @@ impl Reference {
 
     pub fn validate_uri_reference(&self) -> Result<(), String> {
         let ref_str = &self.ref_field;
-        
+
         if ref_str.starts_with('#') {
             return Self::validate_internal_ref(ref_str);
         }
@@ -825,10 +824,7 @@ impl Reference {
     }
 
     fn validate_internal_ref(ref_str: &str) -> Result<(), String> {
-        let parts: Vec<&str> = ref_str[1..]
-            .trim_start_matches('/')
-            .split('/')
-            .collect();
+        let parts: Vec<&str> = ref_str[1..].trim_start_matches('/').split('/').collect();
         if parts.is_empty() {
             return Err("Empty reference path".to_string());
         }
@@ -862,8 +858,7 @@ mod tests {
         }
 
         let invalid_refs = vec![
-            "",
-            "#",
+            "", "#",
             "#/",
             // NOTE: `url` crate considers `http:invalid` a valid URI reference (path-absolute);
             // keep truly invalid examples only.
@@ -874,4 +869,4 @@ mod tests {
             assert!(reference.validate_uri_reference().is_err());
         }
     }
-} 
+}

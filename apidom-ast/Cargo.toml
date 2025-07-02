@@ -7,6 +7,7 @@ edition = "2021"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 apidom-cst = { path = "../apidom-cst" }
+apidom-derive = { path = "../apidom-derive" }
 url = "2.5"
 validator = { version = "0.20", features = ["derive"] }
 regex = "1.11"
